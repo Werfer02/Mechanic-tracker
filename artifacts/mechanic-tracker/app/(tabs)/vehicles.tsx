@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function VehiclesScreen() {
   const colors = useColors();
-  const { vehicles, jobs, deleteVehicle, getLastService } = useTracker();
+  const { vehicles, jobs, deleteVehicle, getLastService, getLastServiceEntry } = useTracker();
   const insets = useSafeAreaInsets();
 
   const sorted = [...vehicles].sort((a, b) => {
@@ -68,6 +68,7 @@ export default function VehiclesScreen() {
             vehicle={item}
             jobCount={jobs.filter(j => j.vehicleRegistration === item.registration).length}
             lastJob={getLastService(item.registration)}
+            lastServiceEntry={getLastServiceEntry(item.registration)}
             onPress={() => router.push(`/vehicle/${encodeURIComponent(item.registration)}`)}
             onDelete={() => deleteVehicle(item.registration)}
           />

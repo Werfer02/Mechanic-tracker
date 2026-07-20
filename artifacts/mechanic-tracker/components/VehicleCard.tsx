@@ -19,11 +19,12 @@ interface Props {
   vehicle: Vehicle;
   jobCount: number;
   lastJob: Job | null;
+  lastServiceEntry: Job | null;
   onPress: () => void;
   onDelete: () => void;
 }
 
-export default function VehicleCard({ vehicle, jobCount, lastJob, onPress, onDelete }: Props) {
+export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEntry, onPress, onDelete }: Props) {
   const colors = useColors();
 
   const handleDelete = () => {
@@ -103,13 +104,24 @@ export default function VehicleCard({ vehicle, jobCount, lastJob, onPress, onDel
         </View>
       </View>
 
-      {lastJob && (
-        <View style={s.lastServiceRow}>
-          <Feather name="clock" size={12} color={colors.primary} />
-          <Text style={s.lastServiceLabel}>Last service:</Text>
-          <Text style={s.lastServiceValue}>{formatDate(lastJob.date)} · {lastJob.time}</Text>
-          <View style={s.dot} />
-          <Text style={s.lastServiceDesc} numberOfLines={1}>{lastJob.description}</Text>
+      {(lastJob || lastServiceEntry) && (
+        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 6 }}>
+          {lastJob && (
+            <View style={s.lastServiceRow}>
+              <Feather name="tool" size={12} color={colors.mutedForeground} />
+              <Text style={s.lastServiceLabel}>Last work:</Text>
+              <Text style={s.lastServiceValue}>{formatDate(lastJob.date)} · {lastJob.time}</Text>
+              <View style={s.dot} />
+              <Text style={s.lastServiceDesc} numberOfLines={1}>{lastJob.description}</Text>
+            </View>
+          )}
+          {lastServiceEntry && (
+            <View style={s.lastServiceRow}>
+              <Feather name="clock" size={12} color={colors.primary} />
+              <Text style={[s.lastServiceLabel, { color: colors.primary }]}>Last service:</Text>
+              <Text style={[s.lastServiceValue, { color: colors.primary }]}>{formatDate(lastServiceEntry.date)} · {lastServiceEntry.time}</Text>
+            </View>
+          )}
         </View>
       )}
     </TouchableOpacity>

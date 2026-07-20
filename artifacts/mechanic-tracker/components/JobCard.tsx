@@ -75,11 +75,18 @@ export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
             <Feather name="clock" size={13} color={colors.mutedForeground} />
             <Text style={s.dateText}>{job.time}</Text>
           </View>
-          {showVehicle && (
-            <View style={s.regBadge}>
-              <Text style={s.regText}>{job.vehicleRegistration}</Text>
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+            {showVehicle && (
+              <View style={s.regBadge}>
+                <Text style={s.regText}>{job.vehicleRegistration}</Text>
+              </View>
+            )}
+            {job.isService && (
+              <View style={[s.regBadge, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
+                <Text style={[s.regText, { color: colors.success }]}>SERVICE</Text>
+              </View>
+            )}
+          </View>
         </View>
         {onDelete && (
           <TouchableOpacity style={s.deleteBtn} onPress={handleDelete}>

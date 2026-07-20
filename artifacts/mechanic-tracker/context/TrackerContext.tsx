@@ -16,6 +16,7 @@ export interface Job {
   time: string; // HH:mm
   description: string;
   notes: string;
+  isService: boolean;
   createdAt: string;
 }
 
@@ -29,6 +30,7 @@ interface TrackerContextType {
   deleteVehicle: (registration: string) => void;
   getJobsForVehicle: (registration: string) => Job[];
   getLastService: (registration: string) => Job | null;
+  getLastServiceEntry: (registration: string) => Job | null;
 }
 
 const TrackerContext = createContext<TrackerContextType | null>(null);
@@ -162,11 +164,21 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     });
   }, [jobs]);
 
+  const getLastServiceEntry = useCallback((registration: string): Job | null => {
+    const serviceJobs = jobs.filter(j => j.vehicleRegistration === registration && j.isService);
+    if (!serviceJobs.length) return null;
+    return serviceJobs.reduce((latest, job) => {
+      const jd = new Date(`${job.date}T${job.time}`).getTime();
+      const ld = new Date(`${latest.date}T${latest.time}`).getTime();
+      return jd > ld ? job : latest;
+    });
+  }, [jobs]);
+
   return (
     <TrackerContext.Provider value={{
       vehicles, jobs, isLoading,
       addJob, deleteJob, upsertVehicle, deleteVehicle,
-      getJobsForVehicle, getLastService,
+      getJobsForVehicle, getLastService, getLastServiceEntry,
     }}>
       {children}
     </TrackerContext.Provider>

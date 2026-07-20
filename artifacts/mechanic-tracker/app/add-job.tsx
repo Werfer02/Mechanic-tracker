@@ -44,6 +44,7 @@ export default function AddJobScreen() {
   const [selectedTime, setSelectedTime] = useState(nowTime());
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
+  const [isService, setIsService] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -78,6 +79,7 @@ export default function AddJobScreen() {
       time: selectedTime,
       description: description.trim(),
       notes: notes.trim(),
+      isService,
     });
     router.back();
   };
@@ -154,6 +156,27 @@ export default function AddJobScreen() {
     suggestionMM: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' },
     makeModelRow: { flexDirection: 'row', gap: 10 },
     makeInput: { flex: 1 },
+    serviceToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    serviceToggleLeft: { gap: 2 },
+    serviceToggleTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: colors.foreground },
+    serviceToggleSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: colors.mutedForeground },
+    toggleTrack: {
+      width: 50, height: 28,
+      borderRadius: 14,
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' },
   });
 
   return (
@@ -250,6 +273,21 @@ export default function AddJobScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Service Toggle */}
+        <TouchableOpacity
+          style={s.serviceToggleRow}
+          onPress={() => { setIsService(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          activeOpacity={0.8}
+        >
+          <View style={s.serviceToggleLeft}>
+            <Text style={s.serviceToggleTitle}>Full Service</Text>
+            <Text style={s.serviceToggleSub}>Mark this entry as a scheduled service</Text>
+          </View>
+          <View style={[s.toggleTrack, { backgroundColor: isService ? colors.primary : colors.secondary }]}>
+            <View style={[s.toggleThumb, { alignSelf: isService ? 'flex-end' : 'flex-start' }]} />
+          </View>
+        </TouchableOpacity>
 
         {/* Description */}
         <View style={s.section}>

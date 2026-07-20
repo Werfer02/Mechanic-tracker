@@ -25,11 +25,12 @@ export default function VehicleDetailScreen() {
   const registration = decodeURIComponent(reg ?? '');
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { vehicles, jobs, deleteJob, deleteVehicle, getJobsForVehicle, getLastService } = useTracker();
+  const { vehicles, jobs, deleteJob, deleteVehicle, getJobsForVehicle, getLastService, getLastServiceEntry } = useTracker();
 
   const vehicle = vehicles.find(v => v.registration === registration);
   const vehicleJobs = getJobsForVehicle(registration);
   const lastService = getLastService(registration);
+  const lastServiceEntry = getLastServiceEntry(registration);
 
   const handleDeleteVehicle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -165,15 +166,41 @@ export default function VehicleDetailScreen() {
             <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
               {lastService ? formatDate(lastService.date) : '—'}
             </Text>
-            <Text style={s.statLabel}>Last Service</Text>
-          </View>
-          <View style={s.statCard}>
-            <Text style={s.statValue}>
-              {lastService ? lastService.time : '—'}
-            </Text>
-            <Text style={s.statLabel}>Time</Text>
+            <Text style={s.statLabel}>Last Work</Text>
           </View>
         </View>
+
+        {lastServiceEntry ? (
+          <View style={[s.statsRow, { marginTop: 8 }]}>
+            <View style={[s.statCard, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+              borderColor: colors.primary + '55', backgroundColor: colors.primary + '11' }]}>
+              <Feather name="clock" size={20} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[s.statLabel, { color: colors.primary }]}>Last Full Service</Text>
+                <Text style={[s.statValue, { fontSize: 15, color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {formatDate(lastServiceEntry.date)} · {lastServiceEntry.time}
+                </Text>
+                {!!lastServiceEntry.description && (
+                  <Text numberOfLines={1} style={{ fontSize: 12, color: colors.primary + 'AA',
+                    fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                    {lastServiceEntry.description}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={[s.statsRow, { marginTop: 8 }]}>
+            <View style={[s.statCard, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+              borderColor: colors.border, backgroundColor: colors.secondary }]}>
+              <Feather name="clock" size={20} color={colors.mutedForeground} />
+              <View>
+                <Text style={s.statLabel}>Last Full Service</Text>
+                <Text style={[s.statValue, { fontSize: 15 }]}>No service recorded</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={s.sectionHeader}>
