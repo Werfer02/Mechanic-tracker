@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, Platform, Alert,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useTracker } from '@/context/TrackerContext';
 import JobCard from '@/components/JobCard';
+import ConfirmModal from '@/components/ConfirmModal';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -32,19 +33,11 @@ export default function VehicleDetailScreen() {
   const lastService = getLastService(registration);
   const lastServiceEntry = getLastServiceEntry(registration);
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   const handleDeleteVehicle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      'Remove Vehicle',
-      `Remove ${registration} and all ${vehicleJobs.length} job(s)?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove', style: 'destructive',
-          onPress: () => { deleteVehicle(registration); router.back(); },
-        },
-      ]
-    );
+    setConfirmingDelete(true);
   };
 
   const handleAddJob = () => {
@@ -226,6 +219,15 @@ export default function VehicleDetailScreen() {
         }
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
+      />
+
+      <ConfirmModal
+        visible={confirmingDelete}
+        title="Remove Vehicle"
+        message={`Remove ${registration} and all ${vehicleJobs.length} job(s)? This cannot be undone.`}
+        confirmLabel="Remove"
+        onConfirm={() => { setConfirmingDelete(false); deleteVehicle(registration); router.back(); }}
+        onCancel={() => setConfirmingDelete(false)}
       />
     </View>
   );

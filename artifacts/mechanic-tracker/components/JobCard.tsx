@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { Job } from '@/context/TrackerContext';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -23,16 +24,16 @@ interface Props {
 
 export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
   const colors = useColors();
+  const [confirming, setConfirming] = useState(false);
 
-  const handleDelete = () => {
+  const handleDeletePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Delete Job', 'Remove this work entry?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: () => onDelete?.(job.id),
-      },
-    ]);
+    setConfirming(true);
+  };
+
+  const handleConfirm = () => {
+    setConfirming(false);
+    onDelete?.(job.id);
   };
 
   const s = StyleSheet.create({
@@ -45,7 +46,7 @@ export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
       borderColor: colors.border,
     },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
-    leftTop: { gap: 4 },
+    leftTop: { gap: 4, flex: 1 },
     dateTime: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     dateText: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_500Medium' },
     regBadge: {
@@ -57,45 +58,67 @@ export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
       borderWidth: 1,
       borderColor: colors.primary + '55',
     },
+    serviceBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: '#22C55E22',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderWidth: 1,
+      borderColor: '#22C55E55',
+    },
     regText: { fontSize: 13, color: colors.primary, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
-    deleteBtn: { padding: 4 },
+    serviceText: { fontSize: 13, color: '#22C55E', fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+    deleteBtn: { padding: 4, marginLeft: 8 },
     desc: { fontSize: 15, color: colors.foreground, fontFamily: 'Inter_500Medium', lineHeight: 22 },
     notes: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginTop: 6, lineHeight: 19 },
     dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.mutedForeground },
+    badgesRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   });
 
   return (
-    <View style={s.card}>
-      <View style={s.topRow}>
-        <View style={s.leftTop}>
-          <View style={s.dateTime}>
-            <Feather name="calendar" size={13} color={colors.mutedForeground} />
-            <Text style={s.dateText}>{formatDate(job.date)}</Text>
-            <View style={s.dot} />
-            <Feather name="clock" size={13} color={colors.mutedForeground} />
-            <Text style={s.dateText}>{job.time}</Text>
+    <>
+      <View style={s.card}>
+        <View style={s.topRow}>
+          <View style={s.leftTop}>
+            <View style={s.dateTime}>
+              <Feather name="calendar" size={13} color={colors.mutedForeground} />
+              <Text style={s.dateText}>{formatDate(job.date)}</Text>
+              <View style={s.dot} />
+              <Feather name="clock" size={13} color={colors.mutedForeground} />
+              <Text style={s.dateText}>{job.time}</Text>
+            </View>
+            <View style={s.badgesRow}>
+              {showVehicle && (
+                <View style={s.regBadge}>
+                  <Text style={s.regText}>{job.vehicleRegistration}</Text>
+                </View>
+              )}
+              {job.isService && (
+                <View style={s.serviceBadge}>
+                  <Text style={s.serviceText}>SERVICE</Text>
+                </View>
+              )}
+            </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-            {showVehicle && (
-              <View style={s.regBadge}>
-                <Text style={s.regText}>{job.vehicleRegistration}</Text>
-              </View>
-            )}
-            {job.isService && (
-              <View style={[s.regBadge, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
-                <Text style={[s.regText, { color: colors.success }]}>SERVICE</Text>
-              </View>
-            )}
-          </View>
+          {onDelete && (
+            <TouchableOpacity style={s.deleteBtn} onPress={handleDeletePress}>
+              <Feather name="trash-2" size={17} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          )}
         </View>
-        {onDelete && (
-          <TouchableOpacity style={s.deleteBtn} onPress={handleDelete}>
-            <Feather name="trash-2" size={17} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        )}
+        <Text style={s.desc}>{job.description}</Text>
+        {!!job.notes && <Text style={s.notes}>{job.notes}</Text>}
       </View>
-      <Text style={s.desc}>{job.description}</Text>
-      {!!job.notes && <Text style={s.notes}>{job.notes}</Text>}
-    </View>
+
+      <ConfirmModal
+        visible={confirming}
+        title="Delete Job"
+        message="Remove this work entry? This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirming(false)}
+      />
+    </>
   );
 }

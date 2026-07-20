@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { Vehicle, Job } from '@/context/TrackerContext';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -26,17 +27,11 @@ interface Props {
 
 export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEntry, onPress, onDelete }: Props) {
   const colors = useColors();
+  const [confirming, setConfirming] = useState(false);
 
-  const handleDelete = () => {
+  const handleDeletePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      'Remove Vehicle',
-      `Remove ${vehicle.registration} and all its job history?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: onDelete },
-      ]
-    );
+    setConfirming(true);
   };
 
   const s = StyleSheet.create({
@@ -70,7 +65,7 @@ export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEnt
     statText: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_500Medium' },
     actions: { flexDirection: 'row', gap: 8, marginLeft: 8 },
     iconBtn: { padding: 6 },
-    lastServiceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
+    lastServiceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     lastServiceLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_500Medium' },
     lastServiceValue: { fontSize: 12, color: colors.foreground, fontFamily: 'Inter_600SemiBold' },
     lastServiceDesc: { fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', flex: 1 },
@@ -78,52 +73,65 @@ export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEnt
   });
 
   return (
-    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.75}>
-      <View style={s.row}>
-        <View style={s.plate}>
-          <Text style={s.plateText}>{vehicle.registration}</Text>
-        </View>
-        <View style={s.info}>
-          {!!(vehicle.make || vehicle.model) && (
-            <Text style={s.makeModel} numberOfLines={1}>
-              {[vehicle.make, vehicle.model].filter(Boolean).join(' ')}
-            </Text>
-          )}
-          <View style={s.statsRow}>
-            <View style={s.stat}>
-              <Feather name="tool" size={13} color={colors.primary} />
-              <Text style={s.statText}>{jobCount} {jobCount === 1 ? 'job' : 'jobs'}</Text>
+    <>
+      <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.75}>
+        <View style={s.row}>
+          <View style={s.plate}>
+            <Text style={s.plateText}>{vehicle.registration}</Text>
+          </View>
+          <View style={s.info}>
+            {!!(vehicle.make || vehicle.model) && (
+              <Text style={s.makeModel} numberOfLines={1}>
+                {[vehicle.make, vehicle.model].filter(Boolean).join(' ')}
+              </Text>
+            )}
+            <View style={s.statsRow}>
+              <View style={s.stat}>
+                <Feather name="tool" size={13} color={colors.primary} />
+                <Text style={s.statText}>{jobCount} {jobCount === 1 ? 'job' : 'jobs'}</Text>
+              </View>
             </View>
           </View>
+          <View style={s.actions}>
+            <TouchableOpacity style={s.iconBtn} onPress={handleDeletePress}>
+              <Feather name="trash-2" size={17} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </View>
         </View>
-        <View style={s.actions}>
-          <TouchableOpacity style={s.iconBtn} onPress={handleDelete}>
-            <Feather name="trash-2" size={17} color={colors.mutedForeground} />
-          </TouchableOpacity>
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        </View>
-      </View>
 
-      {(lastJob || lastServiceEntry) && (
-        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 6 }}>
-          {lastJob && (
-            <View style={s.lastServiceRow}>
-              <Feather name="tool" size={12} color={colors.mutedForeground} />
-              <Text style={s.lastServiceLabel}>Last work:</Text>
-              <Text style={s.lastServiceValue}>{formatDate(lastJob.date)} · {lastJob.time}</Text>
-              <View style={s.dot} />
-              <Text style={s.lastServiceDesc} numberOfLines={1}>{lastJob.description}</Text>
-            </View>
-          )}
-          {lastServiceEntry && (
-            <View style={s.lastServiceRow}>
-              <Feather name="clock" size={12} color={colors.primary} />
-              <Text style={[s.lastServiceLabel, { color: colors.primary }]}>Last service:</Text>
-              <Text style={[s.lastServiceValue, { color: colors.primary }]}>{formatDate(lastServiceEntry.date)} · {lastServiceEntry.time}</Text>
-            </View>
-          )}
-        </View>
-      )}
-    </TouchableOpacity>
+        {(lastJob || lastServiceEntry) && (
+          <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 6 }}>
+            {lastJob && (
+              <View style={s.lastServiceRow}>
+                <Feather name="tool" size={12} color={colors.mutedForeground} />
+                <Text style={s.lastServiceLabel}>Last work:</Text>
+                <Text style={s.lastServiceValue}>{formatDate(lastJob.date)} · {lastJob.time}</Text>
+                <View style={s.dot} />
+                <Text style={s.lastServiceDesc} numberOfLines={1}>{lastJob.description}</Text>
+              </View>
+            )}
+            {lastServiceEntry && (
+              <View style={s.lastServiceRow}>
+                <Feather name="clock" size={12} color={colors.primary} />
+                <Text style={[s.lastServiceLabel, { color: colors.primary }]}>Last service:</Text>
+                <Text style={[s.lastServiceValue, { color: colors.primary }]}>
+                  {formatDate(lastServiceEntry.date)} · {lastServiceEntry.time}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+
+      <ConfirmModal
+        visible={confirming}
+        title="Remove Vehicle"
+        message={`Remove ${vehicle.registration} and all its job history? This cannot be undone.`}
+        confirmLabel="Remove"
+        onConfirm={() => { setConfirming(false); onDelete(); }}
+        onCancel={() => setConfirming(false)}
+      />
+    </>
   );
 }
