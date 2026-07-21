@@ -48,7 +48,7 @@ export function useSyncRoom() {
     }
   }, []);
 
-  const joinRoom = useCallback(async (roomCode: string): Promise<boolean> => {
+  const joinRoom = useCallback(async (roomCode: string): Promise<string | null> => {
     const upper = roomCode.toUpperCase().trim();
     setStatus('syncing');
     setErrorMsg(null);
@@ -57,17 +57,17 @@ export function useSyncRoom() {
       if (res.status === 404) {
         setStatus('error');
         setErrorMsg('Room not found. Check the code and try again.');
-        return false;
+        return null;
       }
       if (!res.ok) throw new Error('Server error');
       await AsyncStorage.setItem(SYNC_CODE_KEY, upper);
       setCode(upper);
       setStatus('ok');
-      return true;
+      return upper; // return the code so callers can immediately pass it to sync()
     } catch {
       setStatus('error');
       setErrorMsg('Could not connect. Check your connection.');
-      return false;
+      return null;
     }
   }, []);
 
@@ -89,13 +89,15 @@ export function useSyncRoom() {
   const sync = useCallback(async (
     localVehicles: Vehicle[],
     localJobs: Job[],
+    roomCodeOverride?: string, // pass immediately after joinRoom to bypass stale state
   ): Promise<{ vehicles: Vehicle[]; jobs: Job[] } | null> => {
-    if (!code) return null;
+    const activeCode = roomCodeOverride ?? code;
+    if (!activeCode) return null;
     setStatus('syncing');
     setErrorMsg(null);
     try {
       // 1. Pull
-      const pullRes = await fetch(`${getApiBase()}/sync/rooms/${code}`);
+      const pullRes = await fetch(`${getApiBase()}/sync/rooms/${activeCode}`);
       if (pullRes.status === 404) {
         setStatus('error');
         setErrorMsg('Sync room no longer exists. Create a new one.');
@@ -116,7 +118,7 @@ export function useSyncRoom() {
       const mergedJobs = Array.from(jobMap.values());
 
       // 3. Push merged
-      const pushRes = await fetch(`${getApiBase()}/sync/rooms/${code}`, {
+      const pushRes = await fetch(`${getApiBase()}/sync/rooms/${activeCode}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vehicles: mergedVehicles, jobs: mergedJobs }),

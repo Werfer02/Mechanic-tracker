@@ -187,11 +187,12 @@ export default function SyncScreen() {
     }
   };
 
-  /** Join a room then immediately sync so data is up to date without an extra tap */
+  /** Join a room then immediately sync — passes the returned code directly to
+   *  sync() so it doesn't read stale React state (which is still null). */
   const handleJoinAndSync = async (roomCode: string) => {
-    const joined = await joinRoom(roomCode);
-    if (joined) {
-      const result = await sync(vehicles, jobs);
+    const confirmedCode = await joinRoom(roomCode);
+    if (confirmedCode) {
+      const result = await sync(vehicles, jobs, confirmedCode);
       if (result) await replaceData(result.vehicles as any, result.jobs as any);
     }
   };
@@ -200,7 +201,7 @@ export default function SyncScreen() {
   const handleCreateAndSync = async () => {
     const newCode = await createRoom();
     if (newCode) {
-      const result = await sync(vehicles, jobs);
+      const result = await sync(vehicles, jobs, newCode);
       if (result) await replaceData(result.vehicles as any, result.jobs as any);
     }
   };
