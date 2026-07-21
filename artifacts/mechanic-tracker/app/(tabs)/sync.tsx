@@ -180,6 +180,26 @@ export default function SyncScreen() {
   const [showScanner, setShowScanner] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Keep refs fresh so the polling interval always has current data
+  // without restarting itself every time vehicles/jobs change.
+  const vehiclesRef = useRef(vehicles);
+  const jobsRef = useRef(jobs);
+  useEffect(() => { vehiclesRef.current = vehicles; }, [vehicles]);
+  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+
+  // Auto-sync every 8 s while connected so the desktop receives updates
+  // without anyone pressing a button.
+  useEffect(() => {
+    if (!code) return;
+    const id = setInterval(async () => {
+      if (status === 'syncing') return; // don't pile up concurrent syncs
+      const result = await sync(vehiclesRef.current, jobsRef.current);
+      if (result) await replaceData(result.vehicles as any, result.jobs as any);
+    }, 8000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]); // only restart when room changes, not on every render
+
   const handleSync = async () => {
     const result = await sync(vehicles, jobs);
     if (result) {

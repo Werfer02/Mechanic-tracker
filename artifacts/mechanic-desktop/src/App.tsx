@@ -464,7 +464,7 @@ function WorkshopView({ syncCode, onDisconnect }: { syncCode: string; onDisconne
   const hasAutoSynced = useRef(false);
 
   const { data, isLoading, isError, refetch } = useGetSyncRoom(syncCode, {
-    query: { retry: 2, refetchOnWindowFocus: false },
+    query: { retry: 2, refetchOnWindowFocus: false, refetchInterval: 8000 },
   });
 
   const remoteVehicles: Vehicle[] = data?.vehicles || [];
