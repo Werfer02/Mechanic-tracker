@@ -172,7 +172,7 @@ function QRScanner({ onScanned, onClose }: QRScannerProps) {
 export default function SyncScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { vehicles, jobs, replaceData } = useTracker();
+  const { vehicles, jobs, syncVehicles, syncJobs, replaceData } = useTracker();
   const { code, status, lastSynced, errorMsg, createRoom, joinRoom, disconnect, sync } = useSyncRoom();
 
   const [joinCode, setJoinCode] = useState('');
@@ -182,10 +182,11 @@ export default function SyncScreen() {
 
   // Keep refs fresh so the polling interval always has current data
   // without restarting itself every time vehicles/jobs change.
-  const vehiclesRef = useRef(vehicles);
-  const jobsRef = useRef(jobs);
-  useEffect(() => { vehiclesRef.current = vehicles; }, [vehicles]);
-  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+  // Use syncVehicles/syncJobs (raw, includes tombstones) so deletions propagate.
+  const vehiclesRef = useRef(syncVehicles);
+  const jobsRef = useRef(syncJobs);
+  useEffect(() => { vehiclesRef.current = syncVehicles; }, [syncVehicles]);
+  useEffect(() => { jobsRef.current = syncJobs; }, [syncJobs]);
 
   // Auto-sync every 8 s while connected so the desktop receives updates
   // without anyone pressing a button.
@@ -201,7 +202,7 @@ export default function SyncScreen() {
   }, [code]); // only restart when room changes, not on every render
 
   const handleSync = async () => {
-    const result = await sync(vehicles, jobs);
+    const result = await sync(syncVehicles, syncJobs);
     if (result) {
       await replaceData(result.vehicles as any, result.jobs as any);
     }
@@ -212,7 +213,7 @@ export default function SyncScreen() {
   const handleJoinAndSync = async (roomCode: string) => {
     const confirmedCode = await joinRoom(roomCode);
     if (confirmedCode) {
-      const result = await sync(vehicles, jobs, confirmedCode);
+      const result = await sync(syncVehicles, syncJobs, confirmedCode);
       if (result) await replaceData(result.vehicles as any, result.jobs as any);
     }
   };
@@ -221,7 +222,7 @@ export default function SyncScreen() {
   const handleCreateAndSync = async () => {
     const newCode = await createRoom();
     if (newCode) {
-      const result = await sync(vehicles, jobs, newCode);
+      const result = await sync(syncVehicles, syncJobs, newCode);
       if (result) await replaceData(result.vehicles as any, result.jobs as any);
     }
   };

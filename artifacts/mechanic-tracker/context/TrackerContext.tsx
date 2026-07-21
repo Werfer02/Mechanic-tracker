@@ -7,6 +7,7 @@ export interface Vehicle {
   make: string;
   model: string;
   createdAt: string;
+  _deleted?: boolean;
 }
 
 export interface Job {
@@ -18,11 +19,15 @@ export interface Job {
   notes: string;
   isService: boolean;
   createdAt: string;
+  _deleted?: boolean;
 }
 
 interface TrackerContextType {
   vehicles: Vehicle[];
   jobs: Job[];
+  /** Raw arrays including tombstones — pass these to sync, never render them directly. */
+  syncVehicles: Vehicle[];
+  syncJobs: Job[];
   isLoading: boolean;
   addJob: (job: Omit<Job, 'id' | 'createdAt'>) => Job;
   deleteJob: (id: string) => void;
@@ -31,7 +36,7 @@ interface TrackerContextType {
   getJobsForVehicle: (registration: string) => Job[];
   getLastService: (registration: string) => Job | null;
   getLastServiceEntry: (registration: string) => Job | null;
-  /** Replace all local data with synced data and persist to AsyncStorage. */
+  /** Replace all local data with synced data (may include tombstones) and persist. */
   replaceData: (vehicles: Vehicle[], jobs: Job[]) => Promise<void>;
 }
 
@@ -93,7 +98,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   const deleteJob = useCallback((id: string) => {
     setJobs(prev => {
-      const updated = prev.filter(j => j.id !== id);
+      const updated = prev.map(j => j.id === id ? { ...j, _deleted: true } : j);
       AsyncStorage.setItem(JOBS_KEY, JSON.stringify(updated));
       return updated;
     });
@@ -105,17 +110,15 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     setVehicles(prev => {
       existing = prev.find(v => v.registration === reg);
       if (existing) {
-        if (make || model) {
-          const updated = prev.map(v =>
-            v.registration === reg
-              ? { ...v, make: make || v.make, model: model || v.model }
-              : v
-          );
-          AsyncStorage.setItem(VEHICLES_KEY, JSON.stringify(updated));
-          existing = updated.find(v => v.registration === reg)!;
-          return updated;
-        }
-        return prev;
+        // Un-delete if previously deleted, and optionally update make/model
+        const updated = prev.map(v =>
+          v.registration === reg
+            ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model }
+            : v
+        );
+        AsyncStorage.setItem(VEHICLES_KEY, JSON.stringify(updated));
+        existing = updated.find(v => v.registration === reg)!;
+        return updated;
       }
       const newVehicle: Vehicle = {
         id: generateId(),
@@ -135,12 +138,12 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   const deleteVehicle = useCallback((registration: string) => {
     setVehicles(prev => {
-      const updated = prev.filter(v => v.registration !== registration);
+      const updated = prev.map(v => v.registration === registration ? { ...v, _deleted: true } : v);
       AsyncStorage.setItem(VEHICLES_KEY, JSON.stringify(updated));
       return updated;
     });
     setJobs(prev => {
-      const updated = prev.filter(j => j.vehicleRegistration !== registration);
+      const updated = prev.map(j => j.vehicleRegistration === registration ? { ...j, _deleted: true } : j);
       AsyncStorage.setItem(JOBS_KEY, JSON.stringify(updated));
       return updated;
     });
@@ -148,7 +151,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   const getJobsForVehicle = useCallback((registration: string): Job[] => {
     return jobs
-      .filter(j => j.vehicleRegistration === registration)
+      .filter(j => j.vehicleRegistration === registration && !j._deleted)
       .sort((a, b) => {
         const da = new Date(`${a.date}T${a.time}`).getTime();
         const db = new Date(`${b.date}T${b.time}`).getTime();
@@ -157,7 +160,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   }, [jobs]);
 
   const getLastService = useCallback((registration: string): Job | null => {
-    const vehicleJobs = jobs.filter(j => j.vehicleRegistration === registration);
+    const vehicleJobs = jobs.filter(j => j.vehicleRegistration === registration && !j._deleted);
     if (!vehicleJobs.length) return null;
     return vehicleJobs.reduce((latest, job) => {
       const jd = new Date(`${job.date}T${job.time}`).getTime();
@@ -167,7 +170,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   }, [jobs]);
 
   const getLastServiceEntry = useCallback((registration: string): Job | null => {
-    const serviceJobs = jobs.filter(j => j.vehicleRegistration === registration && j.isService);
+    const serviceJobs = jobs.filter(j => j.vehicleRegistration === registration && j.isService && !j._deleted);
     if (!serviceJobs.length) return null;
     return serviceJobs.reduce((latest, job) => {
       const jd = new Date(`${job.date}T${job.time}`).getTime();
@@ -185,9 +188,17 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     setJobs(newJobs);
   }, []);
 
+  // Filtered views for UI (tombstones hidden)
+  const visibleVehicles = vehicles.filter(v => !v._deleted);
+  const visibleJobs     = jobs.filter(j => !j._deleted);
+
   return (
     <TrackerContext.Provider value={{
-      vehicles, jobs, isLoading,
+      vehicles: visibleVehicles,
+      jobs: visibleJobs,
+      syncVehicles: vehicles,  // raw — includes tombstones, pass to sync only
+      syncJobs: jobs,
+      isLoading,
       addJob, deleteJob, upsertVehicle, deleteVehicle,
       getJobsForVehicle, getLastService, getLastServiceEntry,
       replaceData,

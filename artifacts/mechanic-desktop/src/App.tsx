@@ -16,6 +16,7 @@ interface Vehicle {
   make: string;
   model: string;
   createdAt: string;
+  _deleted?: boolean;
 }
 
 interface Job {
@@ -27,6 +28,7 @@ interface Job {
   notes: string;
   isService: boolean;
   createdAt: string;
+  _deleted?: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -81,23 +83,22 @@ function useDesktopStore() {
     localStorage.setItem(LS_JOBS, JSON.stringify(j));
   };
 
-  /** Upsert a vehicle by registration. Make/model are optional. */
+  /** Upsert a vehicle by registration. Make/model are optional. Un-deletes if previously deleted. */
   const upsertVehicle = useCallback((reg: string, make = '', model = ''): Vehicle => {
     const r = reg.toUpperCase().trim().replace(/\s+/g, '');
     let result: Vehicle | undefined;
     setVehicles(prev => {
       const existing = prev.find(v => v.registration === r);
       if (existing) {
-        if (make || model) {
-          const updated = prev.map(v =>
-            v.registration === r ? { ...v, make: make || v.make, model: model || v.model } : v
-          );
-          localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
-          result = updated.find(v => v.registration === r);
-          return updated;
-        }
-        result = existing;
-        return prev;
+        // Un-delete and optionally update make/model
+        const updated = prev.map(v =>
+          v.registration === r
+            ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model }
+            : v
+        );
+        localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
+        result = updated.find(v => v.registration === r);
+        return updated;
       }
       const newV: Vehicle = { id: genId(), registration: r, make, model, createdAt: new Date().toISOString() };
       result = newV;
@@ -120,12 +121,12 @@ function useDesktopStore() {
 
   const deleteVehicle = useCallback((reg: string) => {
     setVehicles(prev => {
-      const updated = prev.filter(v => v.registration !== reg);
+      const updated = prev.map(v => v.registration === reg ? { ...v, _deleted: true } : v);
       localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
       return updated;
     });
     setJobs(prev => {
-      const updated = prev.filter(j => j.vehicleRegistration !== reg);
+      const updated = prev.map(j => j.vehicleRegistration === reg ? { ...j, _deleted: true } : j);
       localStorage.setItem(LS_JOBS, JSON.stringify(updated));
       return updated;
     });
@@ -133,7 +134,7 @@ function useDesktopStore() {
 
   const deleteJob = useCallback((id: string) => {
     setJobs(prev => {
-      const updated = prev.filter(j => j.id !== id);
+      const updated = prev.map(j => j.id === id ? { ...j, _deleted: true } : j);
       localStorage.setItem(LS_JOBS, JSON.stringify(updated));
       return updated;
     });
@@ -147,7 +148,17 @@ function useDesktopStore() {
     setJobs(newJ);
   }, []);
 
-  return { vehicles, jobs, upsertVehicle, addJob, deleteVehicle, deleteJob, replaceAll };
+  // Filtered views for UI (tombstones hidden); raw arrays go to sync
+  const visibleVehicles = vehicles.filter(v => !v._deleted);
+  const visibleJobs     = jobs.filter(j => !j._deleted);
+
+  return {
+    vehicles: visibleVehicles,
+    jobs: visibleJobs,
+    syncVehicles: vehicles,
+    syncJobs: jobs,
+    upsertVehicle, addJob, deleteVehicle, deleteJob, replaceAll,
+  };
 }
 
 // ── useSyncDesktop ────────────────────────────────────────────────────────────
@@ -746,7 +757,7 @@ function JobCard({ job, onDelete }: { job: Job; onDelete: () => void }) {
 
 function WorkshopView() {
   const store = useDesktopStore();
-  const sync  = useSyncDesktop(store.vehicles, store.jobs, store.replaceAll);
+  const sync  = useSyncDesktop(store.syncVehicles, store.syncJobs, store.replaceAll);
 
   const { vehicles, jobs, upsertVehicle, addJob, deleteVehicle, deleteJob } = store;
   const { syncCode, syncStatus, lastSynced, connect, createAndConnect, disconnect, syncNow } = sync;
