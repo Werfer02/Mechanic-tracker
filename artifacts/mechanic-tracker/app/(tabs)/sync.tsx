@@ -188,14 +188,23 @@ export default function SyncScreen() {
   useEffect(() => { vehiclesRef.current = syncVehicles; }, [syncVehicles]);
   useEffect(() => { jobsRef.current = syncJobs; }, [syncJobs]);
 
+  // Use a ref for the in-flight guard — avoids the stale-closure bug where
+  // `status` captured at effect-creation time is permanently 'syncing'.
+  const isSyncingRef = useRef(false);
+
   // Auto-sync every 8 s while connected so the desktop receives updates
   // without anyone pressing a button.
   useEffect(() => {
     if (!code) return;
     const id = setInterval(async () => {
-      if (status === 'syncing') return; // don't pile up concurrent syncs
-      const result = await sync(vehiclesRef.current, jobsRef.current);
-      if (result) await replaceData(result.vehicles as any, result.jobs as any);
+      if (isSyncingRef.current) return; // don't pile up concurrent syncs
+      isSyncingRef.current = true;
+      try {
+        const result = await sync(vehiclesRef.current, jobsRef.current);
+        if (result) await replaceData(result.vehicles as any, result.jobs as any);
+      } finally {
+        isSyncingRef.current = false;
+      }
     }, 8000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps

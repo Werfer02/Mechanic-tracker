@@ -8,6 +8,7 @@ export interface Vehicle {
   model: string;
   createdAt: string;
   _deleted?: boolean;
+  _deletedAt?: string;
 }
 
 export interface Job {
@@ -20,6 +21,7 @@ export interface Job {
   isService: boolean;
   createdAt: string;
   _deleted?: boolean;
+  _deletedAt?: string;
 }
 
 interface TrackerContextType {
@@ -97,8 +99,9 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteJob = useCallback((id: string) => {
+    const now = new Date().toISOString();
     setJobs(prev => {
-      const updated = prev.map(j => j.id === id ? { ...j, _deleted: true } : j);
+      const updated = prev.map(j => j.id === id ? { ...j, _deleted: true, _deletedAt: now } : j);
       AsyncStorage.setItem(JOBS_KEY, JSON.stringify(updated));
       return updated;
     });
@@ -137,13 +140,14 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteVehicle = useCallback((registration: string) => {
+    const now = new Date().toISOString();
     setVehicles(prev => {
-      const updated = prev.map(v => v.registration === registration ? { ...v, _deleted: true } : v);
+      const updated = prev.map(v => v.registration === registration ? { ...v, _deleted: true, _deletedAt: now } : v);
       AsyncStorage.setItem(VEHICLES_KEY, JSON.stringify(updated));
       return updated;
     });
     setJobs(prev => {
-      const updated = prev.map(j => j.vehicleRegistration === registration ? { ...j, _deleted: true } : j);
+      const updated = prev.map(j => j.vehicleRegistration === registration ? { ...j, _deleted: true, _deletedAt: now } : j);
       AsyncStorage.setItem(JOBS_KEY, JSON.stringify(updated));
       return updated;
     });

@@ -17,6 +17,7 @@ interface Vehicle {
   model: string;
   createdAt: string;
   _deleted?: boolean;
+  _deletedAt?: string;
 }
 
 interface Job {
@@ -29,6 +30,7 @@ interface Job {
   isService: boolean;
   createdAt: string;
   _deleted?: boolean;
+  _deletedAt?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -56,6 +58,18 @@ function mergeById<T extends { id: string }>(remote: T[], local: T[]): T[] {
   for (const item of remote) map.set(item.id, item);
   for (const item of local)  map.set(item.id, item); // local wins same-id
   return Array.from(map.values());
+}
+
+const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+/** Drop tombstones that are old enough that both devices have had time to sync them. */
+function purgeOldTombstones<T extends { _deleted?: boolean; _deletedAt?: string }>(items: T[]): T[] {
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+  return items.filter(item => {
+    if (!item._deleted) return true;                         // not a tombstone — keep
+    if (!item._deletedAt) return false;                     // no timestamp — purge now
+    return new Date(item._deletedAt).getTime() > cutoff;   // keep if still within TTL
+  });
 }
 
 // ── useDesktopStore ───────────────────────────────────────────────────────────
@@ -120,21 +134,23 @@ function useDesktopStore() {
   }, []);
 
   const deleteVehicle = useCallback((reg: string) => {
+    const now = new Date().toISOString();
     setVehicles(prev => {
-      const updated = prev.map(v => v.registration === reg ? { ...v, _deleted: true } : v);
+      const updated = prev.map(v => v.registration === reg ? { ...v, _deleted: true, _deletedAt: now } : v);
       localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
       return updated;
     });
     setJobs(prev => {
-      const updated = prev.map(j => j.vehicleRegistration === reg ? { ...j, _deleted: true } : j);
+      const updated = prev.map(j => j.vehicleRegistration === reg ? { ...j, _deleted: true, _deletedAt: now } : j);
       localStorage.setItem(LS_JOBS, JSON.stringify(updated));
       return updated;
     });
   }, []);
 
   const deleteJob = useCallback((id: string) => {
+    const now = new Date().toISOString();
     setJobs(prev => {
-      const updated = prev.map(j => j.id === id ? { ...j, _deleted: true } : j);
+      const updated = prev.map(j => j.id === id ? { ...j, _deleted: true, _deletedAt: now } : j);
       localStorage.setItem(LS_JOBS, JSON.stringify(updated));
       return updated;
     });
@@ -198,8 +214,8 @@ function useSyncDesktop(
     setSyncError(null);
     try {
       const remote = await getSyncRoom(code);
-      const mergedV = mergeById(remote.vehicles as Vehicle[], vehiclesRef.current);
-      const mergedJ = mergeById(remote.jobs     as Job[],     jobsRef.current);
+      const mergedV = purgeOldTombstones(mergeById(remote.vehicles as Vehicle[], vehiclesRef.current));
+      const mergedJ = purgeOldTombstones(mergeById(remote.jobs     as Job[],     jobsRef.current));
       await pushSyncRoom(code, { vehicles: mergedV, jobs: mergedJ });
       replaceAllRef.current(mergedV, mergedJ);
       setLastSynced(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));

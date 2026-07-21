@@ -2,6 +2,17 @@ import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Vehicle, Job } from '@/context/TrackerContext';
 
+const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function purgeOldTombstones<T extends { _deleted?: boolean; _deletedAt?: string }>(items: T[]): T[] {
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+  return items.filter(item => {
+    if (!item._deleted) return true;
+    if (!item._deletedAt) return false;
+    return new Date(item._deletedAt).getTime() > cutoff;
+  });
+}
+
 const SYNC_CODE_KEY = 'mechanic_sync_code';
 const LAST_SYNCED_KEY = 'mechanic_last_synced';
 
@@ -106,16 +117,16 @@ export function useSyncRoom() {
       if (!pullRes.ok) throw new Error('Pull failed');
       const remote = await pullRes.json() as { vehicles: Vehicle[]; jobs: Job[] };
 
-      // 2. Merge (union by id, local wins on conflict)
+      // 2. Merge (union by id, local wins on conflict) then purge expired tombstones
       const vehicleMap = new Map<string, Vehicle>();
       for (const v of remote.vehicles) vehicleMap.set(v.id, v);
       for (const v of localVehicles) vehicleMap.set(v.id, v);
-      const mergedVehicles = Array.from(vehicleMap.values());
+      const mergedVehicles = purgeOldTombstones(Array.from(vehicleMap.values()));
 
       const jobMap = new Map<string, Job>();
       for (const j of remote.jobs) jobMap.set(j.id, j);
       for (const j of localJobs) jobMap.set(j.id, j);
-      const mergedJobs = Array.from(jobMap.values());
+      const mergedJobs = purgeOldTombstones(Array.from(jobMap.values()));
 
       // 3. Push merged
       const pushRes = await fetch(`${getApiBase()}/sync/rooms/${activeCode}`, {
