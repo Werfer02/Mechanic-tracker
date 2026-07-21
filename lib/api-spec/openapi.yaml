@@ -1,22 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Mechanic Tracker API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: sync
+    description: Sync room operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +24,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /sync/rooms:
+    post:
+      operationId: createSyncRoom
+      tags: [sync]
+      summary: Create a new sync room
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncRoomCode"
+
+  /sync/rooms/{code}:
+    get:
+      operationId: getSyncRoom
+      tags: [sync]
+      summary: Get sync room data
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncRoomData"
+        "404":
+          description: Room not found
+    put:
+      operationId: pushSyncRoom
+      tags: [sync]
+      summary: Push data to sync room
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPayload"
+      responses:
+        "200":
+          description: Pushed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncUpdatedAt"
+        "404":
+          description: Room not found
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +94,63 @@ components:
       required:
         - status
 
+    SyncRoomCode:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+
+    Vehicle:
+      type: object
+      required: [id, registration, make, model, createdAt]
+      properties:
+        id:           { type: string }
+        registration: { type: string }
+        make:         { type: string }
+        model:        { type: string }
+        createdAt:    { type: string }
+
+    Job:
+      type: object
+      required: [id, vehicleRegistration, date, time, description, notes, isService, createdAt]
+      properties:
+        id:                  { type: string }
+        vehicleRegistration: { type: string }
+        date:                { type: string }
+        time:                { type: string }
+        description:         { type: string }
+        notes:               { type: string }
+        isService:           { type: boolean }
+        createdAt:           { type: string }
+
+    SyncRoomData:
+      type: object
+      required: [vehicles, jobs, updatedAt]
+      properties:
+        vehicles:
+          type: array
+          items: { $ref: "#/components/schemas/Vehicle" }
+        jobs:
+          type: array
+          items: { $ref: "#/components/schemas/Job" }
+        updatedAt:
+          type: string
+
+    SyncPayload:
+      type: object
+      required: [vehicles, jobs]
+      properties:
+        vehicles:
+          type: array
+          items: { $ref: "#/components/schemas/Vehicle" }
+        jobs:
+          type: array
+          items: { $ref: "#/components/schemas/Job" }
+
+    SyncUpdatedAt:
+      type: object
+      required: [updatedAt]
+      properties:
+        updatedAt:
+          type: string

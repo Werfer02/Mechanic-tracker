@@ -31,6 +31,8 @@ interface TrackerContextType {
   getJobsForVehicle: (registration: string) => Job[];
   getLastService: (registration: string) => Job | null;
   getLastServiceEntry: (registration: string) => Job | null;
+  /** Replace all local data with synced data and persist to AsyncStorage. */
+  replaceData: (vehicles: Vehicle[], jobs: Job[]) => Promise<void>;
 }
 
 const TrackerContext = createContext<TrackerContextType | null>(null);
@@ -174,11 +176,21 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     });
   }, [jobs]);
 
+  const replaceData = useCallback(async (newVehicles: Vehicle[], newJobs: Job[]) => {
+    await Promise.all([
+      AsyncStorage.setItem(VEHICLES_KEY, JSON.stringify(newVehicles)),
+      AsyncStorage.setItem(JOBS_KEY, JSON.stringify(newJobs)),
+    ]);
+    setVehicles(newVehicles);
+    setJobs(newJobs);
+  }, []);
+
   return (
     <TrackerContext.Provider value={{
       vehicles, jobs, isLoading,
       addJob, deleteJob, upsertVehicle, deleteVehicle,
       getJobsForVehicle, getLastService, getLastServiceEntry,
+      replaceData,
     }}>
       {children}
     </TrackerContext.Provider>

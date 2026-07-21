@@ -19,6 +19,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'car', selected: 'car.fill' }} />
         <Label>Vehicles</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="sync">
+        <Icon sf={{ default: 'arrow.triangle.2.circlepath', selected: 'arrow.triangle.2.circlepath' }} />
+        <Label>Sync</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -77,6 +81,18 @@ function ClassicTabLayout() {
               <SymbolView name="car" tintColor={color} size={24} />
             ) : (
               <Feather name="truck" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="sync"
+        options={{
+          title: 'Sync',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="arrow.triangle.2.circlepath" tintColor={color} size={24} />
+            ) : (
+              <Feather name="refresh-cw" size={22} color={color} />
             ),
         }}
       />
