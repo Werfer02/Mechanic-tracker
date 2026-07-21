@@ -67,49 +67,49 @@
 }
 
 :root {
-  --button-outline: rgba(255, 255, 255, 0.1);
-  --badge-outline: rgba(255, 255, 255, 0.05);
-  --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255, 255, 255, 0.04);
-  --elevate-2: rgba(255, 255, 255, 0.09);
+  /* Light theme */
+  --button-outline: rgba(0, 0, 0, 0.08);
+  --badge-outline: rgba(0, 0, 0, 0.04);
+  --opaque-button-border-intensity: -6;
+  --elevate-1: rgba(0, 0, 0, 0.03);
+  --elevate-2: rgba(0, 0, 0, 0.06);
 
-  /* Dark workshop theme — #0F1117 background */
-  --background:   228 16% 8%;
-  --foreground:   240 20% 96%;
-  --border:       229 18% 20%;
-  --input:        229 17% 17%;
+  --background:   220 20% 98%;
+  --foreground:   228 16% 10%;
+  --border:       220 13% 87%;
+  --input:        220 13% 93%;
   --ring:         25 95% 53%;
 
-  --card:             228 21% 12%;
-  --card-foreground:  240 20% 96%;
-  --card-border:      229 18% 20%;
+  --card:             0 0% 100%;
+  --card-foreground:  228 16% 10%;
+  --card-border:      220 13% 87%;
 
-  --popover:            228 21% 12%;
-  --popover-foreground: 240 20% 96%;
-  --popover-border:     229 18% 20%;
+  --popover:            0 0% 100%;
+  --popover-foreground: 228 16% 10%;
+  --popover-border:     220 13% 87%;
 
   --primary:            25 95% 53%;
-  --primary-foreground: 228 16% 8%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary:            229 17% 17%;
-  --secondary-foreground: 240 20% 96%;
+  --secondary:            220 13% 93%;
+  --secondary-foreground: 228 16% 10%;
 
-  --muted:            229 17% 17%;
-  --muted-foreground: 231 13% 60%;
+  --muted:            220 13% 93%;
+  --muted-foreground: 220 9% 46%;
 
   --accent:            25 95% 53%;
-  --accent-foreground: 228 16% 8%;
+  --accent-foreground: 0 0% 100%;
 
   --destructive:            0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --sidebar:                  228 21% 12%;
-  --sidebar-foreground:       240 20% 96%;
-  --sidebar-border:           229 18% 20%;
+  --sidebar:                  0 0% 100%;
+  --sidebar-foreground:       228 16% 10%;
+  --sidebar-border:           220 13% 87%;
   --sidebar-primary:          25 95% 53%;
-  --sidebar-primary-foreground: 228 16% 8%;
-  --sidebar-accent:           229 17% 17%;
-  --sidebar-accent-foreground: 240 20% 96%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent:           220 13% 93%;
+  --sidebar-accent-foreground: 228 16% 10%;
   --sidebar-ring:             25 95% 53%;
 
   --chart-1: 25 95% 53%;
@@ -123,14 +123,14 @@
   --app-font-mono: Menlo, monospace;
   --radius: 0.5rem;
 
-  --shadow-2xs: 0px 2px 4px 0px hsl(228 16% 4% / 0.4);
-  --shadow-xs:  0px 2px 4px 0px hsl(228 16% 4% / 0.4);
-  --shadow-sm:  0px 2px 4px 0px hsl(228 16% 4% / 0.4), 0px 1px 2px -1px hsl(228 16% 4% / 0.2);
-  --shadow:     0px 2px 4px 0px hsl(228 16% 4% / 0.4), 0px 1px 2px -1px hsl(228 16% 4% / 0.2);
-  --shadow-md:  0px 2px 4px 0px hsl(228 16% 4% / 0.4), 0px 2px 4px -1px hsl(228 16% 4% / 0.3);
-  --shadow-lg:  0px 2px 4px 0px hsl(228 16% 4% / 0.5), 0px 4px 6px -1px hsl(228 16% 4% / 0.4);
-  --shadow-xl:  0px 2px 4px 0px hsl(228 16% 4% / 0.5), 0px 8px 10px -1px hsl(228 16% 4% / 0.4);
-  --shadow-2xl: 0px 2px 4px 0px hsl(228 16% 4% / 0.6);
+  --shadow-2xs: 0px 1px 3px 0px hsl(220 13% 50% / 0.12);
+  --shadow-xs:  0px 1px 3px 0px hsl(220 13% 50% / 0.12);
+  --shadow-sm:  0px 1px 3px 0px hsl(220 13% 50% / 0.12), 0px 1px 2px -1px hsl(220 13% 50% / 0.08);
+  --shadow:     0px 1px 3px 0px hsl(220 13% 50% / 0.12), 0px 1px 2px -1px hsl(220 13% 50% / 0.08);
+  --shadow-md:  0px 2px 6px 0px hsl(220 13% 50% / 0.14), 0px 2px 4px -1px hsl(220 13% 50% / 0.10);
+  --shadow-lg:  0px 4px 12px 0px hsl(220 13% 50% / 0.16), 0px 4px 6px -1px hsl(220 13% 50% / 0.12);
+  --shadow-xl:  0px 8px 20px 0px hsl(220 13% 50% / 0.18), 0px 8px 10px -1px hsl(220 13% 50% / 0.12);
+  --shadow-2xl: 0px 12px 28px 0px hsl(220 13% 50% / 0.20);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
@@ -151,7 +151,7 @@
 }
 
 .dark {
-  /* Same values — always dark */
+  /* Dark workshop theme — #0F1117 background */
   --button-outline: rgba(255, 255, 255, 0.1);
   --badge-outline: rgba(255, 255, 255, 0.05);
   --opaque-button-border-intensity: 9;

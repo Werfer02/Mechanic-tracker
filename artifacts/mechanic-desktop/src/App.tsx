@@ -48,6 +48,7 @@ function fmtDate(iso: string) {
 const LS_VEHICLES  = 'mechanic_desktop_vehicles';
 const LS_JOBS      = 'mechanic_desktop_jobs';
 const LS_SYNC_CODE = 'mechanic_desktop_sync_code';
+const LS_THEME     = 'mechanic_desktop_theme';
 
 function qrUrl(code: string) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=16&bgcolor=1A1D27&color=F0F0F5&data=${encodeURIComponent(code)}`;
@@ -281,6 +282,31 @@ function useSyncDesktop(
   return { syncCode, syncStatus, lastSynced, syncError, connect, createAndConnect, disconnect, syncNow };
 }
 
+// ── useTheme ──────────────────────────────────────────────────────────────────
+// Persists light/dark choice to localStorage and toggles `.dark` on <html>.
+
+function useTheme() {
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(LS_THEME);
+    const dark = stored ? stored === 'dark' : true; // default: dark workshop
+    setIsDark(dark);
+    document.documentElement.classList.toggle('dark', dark);
+  }, []);
+
+  const toggle = useCallback(() => {
+    setIsDark(d => {
+      const next = !d;
+      document.documentElement.classList.toggle('dark', next);
+      localStorage.setItem(LS_THEME, next ? 'dark' : 'light');
+      return next;
+    });
+  }, []);
+
+  return { isDark, toggle };
+}
+
 // ── UI primitives ─────────────────────────────────────────────────────────────
 
 function NumberPlate({ reg, size = 'md' }: { reg: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -378,6 +404,19 @@ const QrIcon = () => (
   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
     <path d="M14 14h3v3m0 4v-4m4 4v-7h-4" />
+  </svg>
+);
+
+const SunIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4" />
+    <path strokeLinecap="round" d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+  </svg>
+);
+
+const MoonIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
   </svg>
 );
 
@@ -774,6 +813,7 @@ function JobCard({ job, onDelete }: { job: Job; onDelete: () => void }) {
 function WorkshopView() {
   const store = useDesktopStore();
   const sync  = useSyncDesktop(store.syncVehicles, store.syncJobs, store.replaceAll);
+  const theme = useTheme();
 
   const { vehicles, jobs, upsertVehicle, addJob, deleteVehicle, deleteJob } = store;
   const { syncCode, syncStatus, lastSynced, connect, createAndConnect, disconnect, syncNow } = sync;
@@ -850,6 +890,14 @@ function WorkshopView() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Theme toggle */}
+          <button
+            onClick={theme.toggle}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {theme.isDark ? <SunIcon /> : <MoonIcon />}
+          </button>
+
           {syncCode ? (
             <>
               {/* Sync status */}
