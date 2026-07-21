@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Vehicle, Job } from '@/context/TrackerContext';
 
-const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function purgeOldTombstones<T extends { _deleted?: boolean; _deletedAt?: string }>(items: T[]): T[] {
   const cutoff = Date.now() - TOMBSTONE_TTL_MS;

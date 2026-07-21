@@ -60,7 +60,7 @@ function mergeById<T extends { id: string }>(remote: T[], local: T[]): T[] {
   return Array.from(map.values());
 }
 
-const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /** Drop tombstones that are old enough that both devices have had time to sync them. */
 function purgeOldTombstones<T extends { _deleted?: boolean; _deletedAt?: string }>(items: T[]): T[] {
