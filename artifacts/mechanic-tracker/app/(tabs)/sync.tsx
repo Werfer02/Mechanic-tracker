@@ -100,6 +100,7 @@ function QRScanner({ onScanned, onClose }: QRScannerProps) {
             <CameraView
               style={{ flex: 1 }}
               facing="back"
+              autofocus="on"
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
               onBarcodeScanned={handleBarcode}
             />
