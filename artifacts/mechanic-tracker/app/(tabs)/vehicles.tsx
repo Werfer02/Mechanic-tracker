@@ -62,6 +62,7 @@ export default function VehiclesScreen() {
         style={s.list}
         contentContainerStyle={sorted.length === 0 ? { flex: 1 } : s.listContent}
         data={sorted}
+        extraData={colors}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
           <VehicleCard

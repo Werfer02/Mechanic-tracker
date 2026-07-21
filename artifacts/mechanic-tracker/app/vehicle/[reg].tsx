@@ -206,6 +206,7 @@ export default function VehicleDetailScreen() {
     <View style={s.container}>
       <FlatList
         data={vehicleJobs}
+        extraData={colors}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
           <JobCard job={item} onDelete={deleteJob} showVehicle={false} />
