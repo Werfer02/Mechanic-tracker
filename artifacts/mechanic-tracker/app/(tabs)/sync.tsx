@@ -187,6 +187,24 @@ export default function SyncScreen() {
     }
   };
 
+  /** Join a room then immediately sync so data is up to date without an extra tap */
+  const handleJoinAndSync = async (roomCode: string) => {
+    const joined = await joinRoom(roomCode);
+    if (joined) {
+      const result = await sync(vehicles, jobs);
+      if (result) await replaceData(result.vehicles as any, result.jobs as any);
+    }
+  };
+
+  /** Create a room then immediately push local data into it */
+  const handleCreateAndSync = async () => {
+    const newCode = await createRoom();
+    if (newCode) {
+      const result = await sync(vehicles, jobs);
+      if (result) await replaceData(result.vehicles as any, result.jobs as any);
+    }
+  };
+
   const handleCopy = async () => {
     await Clipboard.setStringAsync(code ?? '');
     setCopied(true);
@@ -195,8 +213,7 @@ export default function SyncScreen() {
 
   function handleScanned(scannedCode: string) {
     setShowScanner(false);
-    // Small delay so the modal closes before join kicks in
-    setTimeout(() => joinRoom(scannedCode), 300);
+    setTimeout(() => handleJoinAndSync(scannedCode), 300);
   }
 
   const isSyncing = status === 'syncing';
@@ -366,7 +383,7 @@ export default function SyncScreen() {
               <>
                 <TouchableOpacity
                   style={s.primaryBtn}
-                  onPress={createRoom}
+                  onPress={handleCreateAndSync}
                   disabled={isSyncing}
                 >
                   {isSyncing
@@ -396,7 +413,7 @@ export default function SyncScreen() {
                 />
                 <TouchableOpacity
                   style={[s.primaryBtn, { marginBottom: 8 }]}
-                  onPress={() => joinRoom(joinCode)}
+                  onPress={() => handleJoinAndSync(joinCode)}
                   disabled={joinCode.length < 6 || isSyncing}
                 >
                   {isSyncing

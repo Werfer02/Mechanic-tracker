@@ -461,6 +461,7 @@ function WorkshopView({ syncCode, onDisconnect }: { syncCode: string; onDisconne
   const [search, setSearch] = useState('');
   const pushRoom = usePushSyncRoom();
   const hasInitialized = useRef(false);
+  const hasAutoSynced = useRef(false);
 
   const { data, isLoading, isError, refetch } = useGetSyncRoom(syncCode, {
     query: { retry: 2, refetchOnWindowFocus: false },
@@ -485,6 +486,14 @@ function WorkshopView({ syncCode, onDisconnect }: { syncCode: string; onDisconne
       hasInitialized.current = true;
     }
   }, [allVehicles.length]);
+
+  // Auto-sync once when the room first loads successfully
+  useEffect(() => {
+    if (hasAutoSynced.current || isLoading || isError || !data) return;
+    hasAutoSynced.current = true;
+    handleSync();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, isError, data]);
 
   const selectedVehicle = allVehicles.find(v => v.registration === selectedReg) || null;
   const vehicleJobs = allJobs
