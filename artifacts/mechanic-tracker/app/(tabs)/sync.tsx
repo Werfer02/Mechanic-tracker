@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, Platform, ActivityIndicator, Image,
+  ScrollView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -33,14 +33,6 @@ export default function SyncScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [showJoin, setShowJoin] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  const desktopUrl = domain
-    ? `https://${domain}/mechanic-desktop?code=${code}`
-    : code ?? '';
-  const qrUrl = code
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=12&bgcolor=1A1D27&color=F0F0F5&data=${encodeURIComponent(desktopUrl)}`
-    : null;
 
   const handleSync = async () => {
     const result = await sync(vehicles, jobs);
@@ -114,7 +106,7 @@ export default function SyncScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 12,
-      marginBottom: 20,
+      marginBottom: 8,
     },
     codeText: {
       fontSize: 38,
@@ -122,28 +114,17 @@ export default function SyncScreen() {
       color: colors.foreground,
       letterSpacing: 8,
     },
-    copyBtn: {
-      padding: 8,
-      borderRadius: 8,
-      backgroundColor: colors.secondary,
-    },
-    qrContainer: {
-      alignItems: 'center',
-      marginBottom: 20,
-    },
-    qrImage: {
-      width: 200,
-      height: 200,
-      borderRadius: 12,
-      overflow: 'hidden',
-      backgroundColor: colors.card,
-    },
-    qrLabel: {
+    codeHint: {
       fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: colors.mutedForeground,
       textAlign: 'center',
-      marginTop: 10,
+      marginBottom: 20,
+    },
+    copyBtn: {
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: colors.secondary,
     },
     syncBtn: {
       backgroundColor: colors.primary,
@@ -304,7 +285,8 @@ export default function SyncScreen() {
             </View>
             <Text style={s.emptyTitle}>Connect to Desktop</Text>
             <Text style={s.emptySubtitle}>
-              Create a sync room to link your phone with the{'\n'}Mechanic Tracker desktop app.
+              Create a sync room or join one from the desktop app.{'\n'}
+              On the desktop, tap the code badge to show a QR code you can scan.
             </Text>
 
             <View style={s.statsRow}>
@@ -337,7 +319,7 @@ export default function SyncScreen() {
             ) : (
               <View style={s.card}>
                 <Text style={[s.statLabel, { marginBottom: 8, fontSize: 13 }]}>
-                  Enter the 6-character code from another device:
+                  Enter the 6-character code from the desktop app:
                 </Text>
                 <TextInput
                   style={s.input}
@@ -371,9 +353,17 @@ export default function SyncScreen() {
           <>
             <View style={s.card}>
               <View style={s.statusRow}>
-                <View style={[s.statusDot, { backgroundColor: status === 'ok' ? colors.success : status === 'syncing' ? colors.primary : colors.mutedForeground }]} />
-                <Text style={[s.statusText, { color: status === 'ok' ? colors.success : status === 'syncing' ? colors.primary : colors.mutedForeground }]}>
-                  {status === 'syncing' ? 'Syncing…' : status === 'ok' ? 'Connected' : 'Connected'}
+                <View style={[s.statusDot, {
+                  backgroundColor: status === 'ok' ? colors.success
+                    : status === 'syncing' ? colors.primary
+                    : colors.mutedForeground,
+                }]} />
+                <Text style={[s.statusText, {
+                  color: status === 'ok' ? colors.success
+                    : status === 'syncing' ? colors.primary
+                    : colors.mutedForeground,
+                }]}>
+                  {status === 'syncing' ? 'Syncing…' : 'Connected'}
                 </Text>
               </View>
 
@@ -384,22 +374,10 @@ export default function SyncScreen() {
                 </TouchableOpacity>
               </View>
 
-              {qrUrl && (
-                <View style={s.qrContainer}>
-                  <Image
-                    source={{ uri: qrUrl }}
-                    style={s.qrImage}
-                    resizeMode="contain"
-                  />
-                  <Text style={s.qrLabel}>
-                    Scan to open on desktop — or type{' '}
-                    <Text style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}>
-                      {code}
-                    </Text>
-                    {' '}in the desktop app
-                  </Text>
-                </View>
-              )}
+              <Text style={s.codeHint}>
+                Enter this code in the desktop app to connect,{'\n'}
+                or scan the QR shown on the desktop screen.
+              </Text>
 
               <TouchableOpacity style={s.syncBtn} onPress={handleSync} disabled={isSyncing}>
                 {isSyncing
