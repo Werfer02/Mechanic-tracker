@@ -50,6 +50,31 @@ DATABASE_URL=postgresql://... pnpm --filter @workspace/db run push
 
 ---
 
+## Running with Docker
+
+Docker Compose runs PostgreSQL, the API server, and the desktop app together. The API waits for PostgreSQL to become healthy, applies the Drizzle schema, and then starts.
+
+```bash
+docker compose up --build
+```
+
+Open the desktop app at `http://localhost:8080`. The API is available at `http://localhost:3001`, with the health check at `http://localhost:3001/api/healthz`.
+
+To use custom credentials or ports, create a `.env` file in the repository root:
+
+```dotenv
+POSTGRES_DB=mechanic
+POSTGRES_USER=mechanic
+POSTGRES_PASSWORD=replace-with-a-password
+SESSION_SECRET=replace-with-a-random-secret
+API_PORT=3001
+DESKTOP_PORT=8080
+```
+
+Stop the services with `docker compose down`. Add `-v` when stopping if you also want to remove the PostgreSQL data volume.
+
+---
+
 ## Running the API server
 
 ```bash
