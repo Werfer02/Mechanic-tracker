@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  setBaseUrl,
   createSyncRoom,
   getSyncRoom,
   pushSyncRoom,
@@ -48,7 +49,8 @@ function fmtDate(iso: string) {
 const LS_VEHICLES  = 'mechanic_desktop_vehicles';
 const LS_JOBS      = 'mechanic_desktop_jobs';
 const LS_SYNC_CODE = 'mechanic_desktop_sync_code';
-const LS_THEME     = 'mechanic_desktop_theme';
+const LS_THEME      = 'mechanic_desktop_theme';
+const LS_SERVER_URL = 'mechanic_desktop_api_url';
 
 function qrUrl(code: string) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=16&bgcolor=1A1D27&color=F0F0F5&data=${encodeURIComponent(code)}`;
@@ -305,6 +307,30 @@ function useTheme() {
   }, []);
 
   return { isDark, toggle };
+}
+
+// ── useServerUrl ──────────────────────────────────────────────────────────────
+// Persists the API server base URL to localStorage and keeps setBaseUrl() in sync.
+// When url is empty, setBaseUrl(null) is called so the client uses relative paths
+// (works with the Vite dev proxy, or when desktop is served from same origin as API).
+
+function useServerUrl() {
+  const [serverUrl, setServerUrlState] = useState('');
+
+  useEffect(() => {
+    const stored = localStorage.getItem(LS_SERVER_URL) ?? '';
+    setServerUrlState(stored);
+    setBaseUrl(stored || null);
+  }, []);
+
+  const updateServerUrl = useCallback((url: string) => {
+    const trimmed = url.trim();
+    localStorage.setItem(LS_SERVER_URL, trimmed);
+    setServerUrlState(trimmed);
+    setBaseUrl(trimmed || null);
+  }, []);
+
+  return { serverUrl, updateServerUrl };
 }
 
 // ── UI primitives ─────────────────────────────────────────────────────────────
@@ -657,15 +683,19 @@ function QrModal({ code, onClose }: { code: string; onClose: () => void }) {
 
 // ── ConnectModal ──────────────────────────────────────────────────────────────
 
-function ConnectModal({ onConnect, onClose }: {
+function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
   onConnect: (code: string, isNew: boolean) => Promise<void>;
   onClose: () => void;
+  serverUrl: string;
+  onServerUrlChange: (url: string) => void;
 }) {
-  const [tab, setTab]           = useState<'join' | 'create'>('join');
-  const [codeInput, setCode]    = useState('');
-  const [busy, setBusy]         = useState(false);
-  const [error, setError]       = useState('');
-  const [freshCode, setFresh]   = useState<string | null>(null);
+  const [tab, setTab]                       = useState<'join' | 'create'>('join');
+  const [codeInput, setCode]                = useState('');
+  const [busy, setBusy]                     = useState(false);
+  const [error, setError]                   = useState('');
+  const [freshCode, setFresh]               = useState<string | null>(null);
+  const [localServerUrl, setLocalServerUrl] = useState(serverUrl);
+  const [urlSaved, setUrlSaved]             = useState(false);
 
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault();
@@ -756,6 +786,34 @@ function ConnectModal({ onConnect, onClose }: {
             </Btn>
           </div>
         )}
+
+        {/* ── API Server URL ── */}
+        <div className="mt-5 pt-4 border-t border-border">
+          <FieldLabel>API Server URL</FieldLabel>
+          <input
+            type="text"
+            className="w-full rounded-md border px-3 py-2 text-sm font-mono bg-secondary border-border text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="http://192.168.1.x:3001"
+            value={localServerUrl}
+            onChange={e => setLocalServerUrl(e.target.value)}
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <Btn
+              variant="secondary"
+              className="text-xs py-1.5 px-3"
+              onClick={() => {
+                onServerUrlChange(localServerUrl);
+                setUrlSaved(true);
+                setTimeout(() => setUrlSaved(false), 2000);
+              }}
+            >
+              {urlSaved ? '✓ Saved' : 'Save'}
+            </Btn>
+            <p className="text-xs text-muted-foreground">
+              Your API server address. Leave empty to use relative paths (Vite proxy / same origin).
+            </p>
+          </div>
+        </div>
       </div>
     </Modal>
   );
@@ -811,9 +869,10 @@ function JobCard({ job, onDelete }: { job: Job; onDelete: () => void }) {
 // ── WorkshopView ──────────────────────────────────────────────────────────────
 
 function WorkshopView() {
-  const store = useDesktopStore();
-  const sync  = useSyncDesktop(store.syncVehicles, store.syncJobs, store.replaceAll);
-  const theme = useTheme();
+  const store     = useDesktopStore();
+  const sync      = useSyncDesktop(store.syncVehicles, store.syncJobs, store.replaceAll);
+  const theme     = useTheme();
+  const serverCfg = useServerUrl();
 
   const { vehicles, jobs, upsertVehicle, addJob, deleteVehicle, deleteJob } = store;
   const { syncCode, syncStatus, lastSynced, connect, createAndConnect, disconnect, syncNow } = sync;
@@ -1070,6 +1129,8 @@ function WorkshopView() {
         <ConnectModal
           onConnect={handleConnect}
           onClose={() => setShowConnect(false)}
+          serverUrl={serverCfg.serverUrl}
+          onServerUrlChange={serverCfg.updateServerUrl}
         />
       )}
       {showQr && syncCode && (

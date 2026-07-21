@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, Platform, ActivityIndicator, Modal,
@@ -173,12 +173,22 @@ export default function SyncScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { vehicles, jobs, syncVehicles, syncJobs, replaceData } = useTracker();
-  const { code, status, lastSynced, errorMsg, createRoom, joinRoom, disconnect, sync } = useSyncRoom();
+  const { code, status, lastSynced, errorMsg, serverUrl, setServerUrl, createRoom, joinRoom, disconnect, sync } = useSyncRoom();
 
   const [joinCode, setJoinCode] = useState('');
   const [showJoin, setShowJoin] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Local mirror of serverUrl for the text input (so edits don't call AsyncStorage on every keystroke)
+  const [urlInput, setUrlInput] = useState('');
+  const [urlSaved, setUrlSaved] = useState(false);
+  useEffect(() => { setUrlInput(serverUrl); }, [serverUrl]);
+  const handleSaveUrl = useCallback(async () => {
+    await setServerUrl(urlInput);
+    setUrlSaved(true);
+    setTimeout(() => setUrlSaved(false), 2000);
+  }, [urlInput, setServerUrl]);
 
   // Keep refs fresh so the polling interval always has current data
   // without restarting itself every time vehicles/jobs change.
@@ -519,6 +529,38 @@ export default function SyncScreen() {
             </View>
           </>
         )}
+        {/* ── Server URL config ── */}
+        <View style={[s.card, { marginTop: 8 }]}>
+          <Text style={[s.statLabel, { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 }]}>
+            API Server URL
+          </Text>
+          <TextInput
+            style={[s.input, { fontSize: 14, letterSpacing: 0, textAlign: 'left', fontFamily: 'Inter_400Regular', marginBottom: 8 }]}
+            value={urlInput}
+            onChangeText={setUrlInput}
+            placeholder="http://192.168.1.x:3001/api"
+            placeholderTextColor={colors.mutedForeground}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            returnKeyType="done"
+            onSubmitEditing={handleSaveUrl}
+          />
+          <TouchableOpacity
+            style={[s.syncBtn, { backgroundColor: urlSaved ? colors.success : colors.secondary }]}
+            onPress={handleSaveUrl}
+          >
+            <Feather name={urlSaved ? 'check' : 'save'} size={16} color={urlSaved ? '#fff' : colors.foreground} />
+            <Text style={[s.syncBtnText, { color: urlSaved ? '#fff' : colors.foreground }]}>
+              {urlSaved ? 'Saved' : 'Save URL'}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[s.lastSyncedText, { marginTop: 10, textAlign: 'left', lineHeight: 18 }]}>
+            Your local API server address. Required for syncing with the desktop app.{'\n'}
+            Example: http://192.168.1.x:3001/api
+          </Text>
+        </View>
+
       </ScrollView>
 
       {/* QR Scanner modal */}
