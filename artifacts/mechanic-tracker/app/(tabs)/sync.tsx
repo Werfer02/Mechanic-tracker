@@ -404,6 +404,9 @@ export default function SyncScreen() {
       <View style={s.header}>
         <Text style={s.title}>Sync</Text>
         <Text style={s.subtitle}>Keep your mobile and desktop data in sync</Text>
+        <Text style={[s.lastSyncedText, { textAlign: 'center', marginTop: 6, opacity: 0.4 }]}>
+          v{APP_VERSION}
+        </Text>
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
@@ -586,11 +589,6 @@ export default function SyncScreen() {
             Example: http://192.168.1.x:3001/api
           </Text>
         </View>
-
-        {/* ── Version footer ── */}
-        <Text style={[s.lastSyncedText, { textAlign: 'center', marginTop: 24, marginBottom: 8, opacity: 0.4 }]}>
-          v{APP_VERSION}
-        </Text>
 
       </ScrollView>
 
