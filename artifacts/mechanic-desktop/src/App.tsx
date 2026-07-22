@@ -52,8 +52,30 @@ const LS_SYNC_CODE = 'mechanic_desktop_sync_code';
 const LS_THEME      = 'mechanic_desktop_theme';
 const LS_SERVER_URL = 'mechanic_desktop_api_url';
 
-function qrUrl(code: string) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=16&bgcolor=1A1D27&color=F0F0F5&data=${encodeURIComponent(code)}`;
+function qrUrl(data: string) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=16&bgcolor=1A1D27&color=F0F0F5&data=${encodeURIComponent(data)}`;
+}
+
+/**
+ * Build the string encoded inside the QR code.
+ *
+ * When the desktop has a server URL configured (e.g. http://192.168.1.x:3001)
+ * we embed the full mobile-compatible API base plus the code as a query param:
+ *   http://192.168.1.x:3001/api?code=ABC123
+ *
+ * The mobile QR scanner parses this URL, extracts the code *and* the server URL
+ * in one step — zero manual configuration needed.
+ *
+ * When no server URL is set we fall back to just the plain code so existing
+ * manual-entry flows keep working.
+ */
+function makeQrData(code: string, serverUrl: string): string {
+  if (!serverUrl) return code;
+  // Desktop convention: serverUrl has NO /api suffix (e.g. "http://x:3001").
+  // Mobile convention: needs /api appended.  Avoid double-appending.
+  const base = serverUrl.replace(/\/+$/, '');
+  const mobileBase = base.endsWith('/api') ? base : `${base}/api`;
+  return `${mobileBase}?code=${code}`;
 }
 
 function mergeById<T extends { id: string }>(remote: T[], local: T[]): T[] {
@@ -649,8 +671,9 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
 
 // ── QrModal ───────────────────────────────────────────────────────────────────
 
-function QrModal({ code, onClose }: { code: string; onClose: () => void }) {
+function QrModal({ code, apiServerUrl, onClose }: { code: string; apiServerUrl: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const hasServerUrl = Boolean(apiServerUrl);
   function copy() {
     navigator.clipboard.writeText(code).catch(() => {});
     setCopied(true);
@@ -661,10 +684,12 @@ function QrModal({ code, onClose }: { code: string; onClose: () => void }) {
       <div className="p-6 text-center">
         <h2 className="text-base font-semibold mb-1">Connect Mobile App</h2>
         <p className="text-xs text-muted-foreground mb-5">
-          Scan with your phone camera, then enter the code in the Mechanic Tracker app's Sync tab.
+          {hasServerUrl
+            ? 'Scan with the Mechanic Tracker app — server URL and code are embedded automatically.'
+            : 'Scan with your phone, then enter the code in the Mechanic Tracker app\'s Sync tab. Set an API Server URL in Connect settings to auto-configure mobile.'}
         </p>
         <div className="flex justify-center mb-4">
-          <img src={qrUrl(code)} alt="Sync QR" width={200} height={200} className="rounded-xl" style={{ background: '#1A1D27' }} />
+          <img src={qrUrl(makeQrData(code, apiServerUrl))} alt="Sync QR" width={200} height={200} className="rounded-xl" style={{ background: '#1A1D27' }} />
         </div>
         <div className="flex items-center justify-center gap-2 mb-5">
           <span className="text-3xl font-mono font-bold tracking-[0.5em] text-primary">{code}</span>
@@ -675,6 +700,11 @@ function QrModal({ code, onClose }: { code: string; onClose: () => void }) {
             }
           </button>
         </div>
+        {!hasServerUrl && (
+          <p className="text-[11px] text-amber-500/80 mb-4 text-left border border-amber-500/20 rounded-md p-2.5 bg-amber-500/5">
+            ⚠ No API Server URL set — QR contains only the room code. Open "Connect to mobile", scroll to API Server URL, and enter your server address (e.g. <span className="font-mono">http://192.168.1.x:3001</span>) so the QR auto-configures mobile.
+          </p>
+        )}
         <Btn variant="secondary" onClick={onClose} className="w-full justify-center">Close</Btn>
       </div>
     </Modal>
@@ -728,10 +758,12 @@ function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
         <div className="p-6 text-center">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Sync Room Created</p>
           <p className="text-xs text-muted-foreground mb-5">
-            Scan the QR code with your phone, then enter the code in the Mechanic Tracker app's Sync tab — or connect now.
+            {serverUrl
+              ? 'Scan with the Mechanic Tracker app — server URL and code are auto-embedded in the QR.'
+              : 'Scan the QR code with your phone, then enter the code in the Sync tab — or connect now.'}
           </p>
           <div className="flex justify-center mb-4">
-            <img src={qrUrl(freshCode)} alt="Sync QR" width={180} height={180} className="rounded-xl" style={{ background: '#1A1D27' }} />
+            <img src={qrUrl(makeQrData(freshCode, serverUrl))} alt="Sync QR" width={180} height={180} className="rounded-xl" style={{ background: '#1A1D27' }} />
           </div>
           <div className="text-2xl font-mono font-bold tracking-[0.5em] text-primary mb-6">{freshCode}</div>
           <Btn variant="primary" className="w-full justify-center mb-2" disabled={busy}
@@ -810,7 +842,7 @@ function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
               {urlSaved ? '✓ Saved' : 'Save'}
             </Btn>
             <p className="text-xs text-muted-foreground">
-              Your API server address. Leave empty to use relative paths (Vite proxy / same origin).
+              Your API server address, e.g. <span className="font-mono">http://192.168.1.x:3001</span>. Leave empty to use relative paths (same-origin / nginx). When set, the QR code auto-configures the mobile app.
             </p>
           </div>
         </div>
@@ -1134,7 +1166,7 @@ function WorkshopView() {
         />
       )}
       {showQr && syncCode && (
-        <QrModal code={syncCode} onClose={() => setShowQr(false)} />
+        <QrModal code={syncCode} apiServerUrl={serverCfg.serverUrl} onClose={() => setShowQr(false)} />
       )}
       {confirmDeleteVehicle && (
         <ConfirmModal

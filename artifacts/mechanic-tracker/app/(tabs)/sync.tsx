@@ -25,25 +25,43 @@ function formatRelative(isoString: string): string {
   return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
 }
 
-/** Extract a 6-char alphanumeric sync code from raw QR data.
- *  Handles both plain "ABC123" and URLs with ?code=ABC123 or ?syncCode=ABC123 */
-function extractCode(raw: string): string | null {
-  const trimmed = raw.trim().toUpperCase();
-  // Plain 6-char code
-  if (/^[A-Z0-9]{6}$/.test(trimmed)) return trimmed;
-  // URL with query param
+/**
+ * Parse a QR scan result.
+ *
+ * The desktop embeds both the API base and the room code in the QR when a
+ * server URL is configured, e.g.:
+ *   http://192.168.1.x:3001/api?code=ABC123
+ *
+ * This lets us auto-configure the server URL on mobile in a single scan.
+ * We also handle the fallback formats:
+ *   - plain 6-char code:  "ABC123"
+ *   - URL with only code param (no server info): "https://example.com?code=ABC123"
+ */
+function parseQrScan(raw: string): { code: string | null; serverUrl: string | null } {
+  const trimmed = raw.trim();
+  // Plain 6-char alphanumeric code — no server URL info
+  if (/^[A-Z0-9]{6}$/i.test(trimmed)) return { code: trimmed.toUpperCase(), serverUrl: null };
+  // URL — extract code param and optionally infer the server URL from the URL itself
   try {
     const url = new URL(raw);
-    const code = url.searchParams.get('code') || url.searchParams.get('syncCode') || url.searchParams.get('sync_code');
-    if (code && /^[A-Z0-9]{6}$/i.test(code)) return code.toUpperCase();
-  } catch { /* not a URL */ }
-  return null;
+    const code = (
+      url.searchParams.get('code') ||
+      url.searchParams.get('syncCode') ||
+      url.searchParams.get('sync_code')
+    );
+    if (!code || !/^[A-Z0-9]{6}$/i.test(code)) return { code: null, serverUrl: null };
+    // The server URL is the scheme+host+pathname portion (without query/hash).
+    // e.g. "http://192.168.1.x:3001/api?code=ABC123" → "http://192.168.1.x:3001/api"
+    const serverUrl = `${url.origin}${url.pathname}`.replace(/\/+$/, '');
+    return { code: code.toUpperCase(), serverUrl };
+  } catch { /* not a valid URL */ }
+  return { code: null, serverUrl: null };
 }
 
 // ── QR Scanner ────────────────────────────────────────────────────────────────
 
 interface QRScannerProps {
-  onScanned: (code: string) => void;
+  onScanned: (rawQrData: string) => void;
   onClose: () => void;
 }
 
@@ -55,10 +73,10 @@ function QRScanner({ onScanned, onClose }: QRScannerProps) {
 
   function handleBarcode({ data }: { data: string }) {
     if (scannedRef.current) return;
-    const code = extractCode(data);
+    const { code } = parseQrScan(data);
     if (code) {
       scannedRef.current = true;
-      onScanned(code);
+      onScanned(data); // pass raw data so parent can extract server URL too
     }
   }
 
@@ -252,9 +270,16 @@ export default function SyncScreen() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  function handleScanned(scannedCode: string) {
+  function handleScanned(rawQrData: string) {
     setShowScanner(false);
-    setTimeout(() => handleJoinAndSync(scannedCode), 300);
+    const { code, serverUrl: scannedUrl } = parseQrScan(rawQrData);
+    if (!code) return;
+    // Auto-configure server URL from QR when the desktop embedded it
+    if (scannedUrl) {
+      setServerUrl(scannedUrl);   // persists to AsyncStorage
+      setUrlInput(scannedUrl);    // reflects in the URL input field
+    }
+    setTimeout(() => handleJoinAndSync(code), 300);
   }
 
   const isSyncing = status === 'syncing';

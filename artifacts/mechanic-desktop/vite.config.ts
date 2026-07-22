@@ -72,6 +72,16 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Proxy /api/* to the API server when running the Vite dev server directly
+    // (i.e. not behind Docker nginx).  Set API_TARGET to override, e.g.:
+    //   API_TARGET=http://localhost:3001 pnpm run dev
+    // Defaults to port 3001 which matches the Docker-compose API service.
+    proxy: {
+      '/api': {
+        target: process.env.API_TARGET ?? 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,
