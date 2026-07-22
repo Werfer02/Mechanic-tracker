@@ -8,7 +8,7 @@ import { useTracker } from '@/context/TrackerContext';
 import DatePickerModal from '@/components/DatePickerModal';
 import TimePickerModal from '@/components/TimePickerModal';
 import { Feather } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -37,9 +37,12 @@ export default function AddJobScreen() {
   const colors = useColors();
   const { addJob, updateJob, upsertVehicle, vehicles, jobs } = useTracker();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { jobId } = useLocalSearchParams<{ jobId?: string }>();
   const isEditMode = !!jobId;
   const editJob = isEditMode ? jobs.find(j => j.id === jobId) : undefined;
+  // Tracks whether save was completed so the beforeRemove guard is skipped
+  const savedRef = React.useRef(false);
 
   const [registration, setRegistration] = useState('');
   const [make, setMake] = useState('');
@@ -97,12 +100,15 @@ export default function AddJobScreen() {
         notes.trim() !== editJob.notes ||
         isService !== editJob.isService ||
         (mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined) !== editJob.mileageAtService ||
-        photos.length !== (editJob.photos?.length ?? 0)
+        photos.join('|') !== (editJob.photos ?? []).join('|')
       ))
     : (regUpper.length > 0 || description.trim().length > 0 || notes.trim().length > 0 || photos.length > 0);
 
-  const handleClose = () => {
-    if (isDirty) {
+  // Single navigation guard — covers × button, Android hardware back, and iOS swipe-to-dismiss
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (!isDirty || savedRef.current) return;
+      e.preventDefault();
       Alert.alert(
         'Discard changes?',
         isEditMode
@@ -110,13 +116,12 @@ export default function AddJobScreen() {
           : "You have unsaved work. Go back anyway?",
         [
           { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+          { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
         ]
       );
-    } else {
-      router.back();
-    }
-  };
+    });
+    return unsubscribe;
+  }, [navigation, isDirty, isEditMode]);
 
   const handleSave = () => {
     if (!regUpper && !isEditMode) {
@@ -129,6 +134,7 @@ export default function AddJobScreen() {
     }
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    savedRef.current = true; // allow navigation to proceed without discard prompt
 
     if (isEditMode && jobId && editJob) {
       updateJob(jobId, {
@@ -297,7 +303,7 @@ export default function AddJobScreen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.closeBtn} onPress={handleClose}>
+        <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
           <Feather name="x" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{isEditMode ? 'Edit Job' : 'Log Work'}</Text>
