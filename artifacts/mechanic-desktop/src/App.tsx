@@ -725,6 +725,27 @@ function EditJobModal({ job, onSave, onClose }: {
   const [notes, setNotes]             = useState(job.notes);
   const [isService, setIsService]     = useState(job.isService);
   const [mileageInput, setMileageInput] = useState(job.mileageAtService?.toString() ?? '');
+  const [showDiscard, setShowDiscard] = useState(false);
+
+  const isDirty =
+    date !== job.date ||
+    time !== job.time ||
+    description.trim() !== job.description ||
+    notes.trim() !== job.notes ||
+    isService !== job.isService ||
+    mileageInput.trim() !== (job.mileageAtService?.toString() ?? '');
+
+  // Guard backdrop-click and Escape against unsaved changes
+  const handleClose = () => {
+    if (isDirty) { setShowDiscard(true); } else { onClose(); }
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDirty]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -740,64 +761,76 @@ function EditJobModal({ job, onSave, onClose }: {
   }
 
   return (
-    <Modal onClose={onClose}>
-      <div className="p-6">
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold">Edit Job</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Vehicle: <NumberPlate reg={job.vehicleRegistration} size="sm" />
-          </p>
-        </div>
-        <form onSubmit={submit} className="space-y-4">
-          {/* Date + Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <FieldLabel>Date</FieldLabel>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+    <>
+      <Modal onClose={handleClose}>
+        <div className="p-6">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold">Edit Job</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Vehicle: <NumberPlate reg={job.vehicleRegistration} size="sm" />
+            </p>
+          </div>
+          <form onSubmit={submit} className="space-y-4">
+            {/* Date + Time */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Date</FieldLabel>
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+              </div>
+              <div>
+                <FieldLabel>Time</FieldLabel>
+                <Input type="time" value={time} onChange={e => setTime(e.target.value)} required />
+              </div>
             </div>
+            {/* Description */}
             <div>
-              <FieldLabel>Time</FieldLabel>
-              <Input type="time" value={time} onChange={e => setTime(e.target.value)} required />
-            </div>
-          </div>
-          {/* Description */}
-          <div>
-            <FieldLabel>Description <span className="text-destructive">*</span></FieldLabel>
-            <Input
-              placeholder="e.g. Oil change, brake pads..."
-              value={description}
-              onChange={e => setDesc(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-          {/* Notes */}
-          <div>
-            <FieldLabel>Notes</FieldLabel>
-            <Textarea placeholder="Optional notes..." rows={3} value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
-          {/* Full Service toggle */}
-          <Toggle checked={isService} onChange={setIsService} label="Full Service" sub="Mark this job as a complete service" />
-          {/* Mileage at Service */}
-          {isService && (
-            <div>
-              <FieldLabel>Mileage at Service (optional)</FieldLabel>
+              <FieldLabel>Description <span className="text-destructive">*</span></FieldLabel>
               <Input
-                type="number"
-                placeholder="e.g. 45000 km"
-                value={mileageInput}
-                onChange={e => setMileageInput(e.target.value)}
-                min={0}
+                placeholder="e.g. Oil change, brake pads..."
+                value={description}
+                onChange={e => setDesc(e.target.value)}
+                required
+                autoFocus
               />
             </div>
-          )}
-          <div className="flex gap-3 pt-1">
-            <Btn variant="secondary" type="button" onClick={onClose} className="flex-1">Cancel</Btn>
-            <Btn variant="primary" type="submit" className="flex-1" disabled={!description.trim()}>Save Changes</Btn>
-          </div>
-        </form>
-      </div>
-    </Modal>
+            {/* Notes */}
+            <div>
+              <FieldLabel>Notes</FieldLabel>
+              <Textarea placeholder="Optional notes..." rows={3} value={notes} onChange={e => setNotes(e.target.value)} />
+            </div>
+            {/* Full Service toggle */}
+            <Toggle checked={isService} onChange={setIsService} label="Full Service" sub="Mark this job as a complete service" />
+            {/* Mileage at Service */}
+            {isService && (
+              <div>
+                <FieldLabel>Mileage at Service (optional)</FieldLabel>
+                <Input
+                  type="number"
+                  placeholder="e.g. 45000 km"
+                  value={mileageInput}
+                  onChange={e => setMileageInput(e.target.value)}
+                  min={0}
+                />
+              </div>
+            )}
+            <div className="flex gap-3 pt-1">
+              <Btn variant="secondary" type="button" onClick={handleClose} className="flex-1">Cancel</Btn>
+              <Btn variant="primary" type="submit" className="flex-1" disabled={!description.trim()}>Save Changes</Btn>
+            </div>
+          </form>
+        </div>
+      </Modal>
+      {showDiscard && (
+        <ConfirmModal
+          title="Discard changes?"
+          message="Your edits haven't been saved. Go back anyway?"
+          confirmLabel="Discard"
+          danger={false}
+          onConfirm={onClose}
+          onCancel={() => setShowDiscard(false)}
+        />
+      )}
+    </>
   );
 }
 

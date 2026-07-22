@@ -88,6 +88,36 @@ export default function AddJobScreen() {
     setShowSuggestions(false);
   };
 
+  // Dirty detection — compare live state to the original job (edit mode) or to blank (add mode)
+  const isDirty = isEditMode
+    ? (initializedRef.current && editJob != null && (
+        toISODate(selectedDate) !== editJob.date ||
+        selectedTime !== editJob.time ||
+        description.trim() !== editJob.description ||
+        notes.trim() !== editJob.notes ||
+        isService !== editJob.isService ||
+        (mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined) !== editJob.mileageAtService ||
+        photos.length !== (editJob.photos?.length ?? 0)
+      ))
+    : (regUpper.length > 0 || description.trim().length > 0 || notes.trim().length > 0 || photos.length > 0);
+
+  const handleClose = () => {
+    if (isDirty) {
+      Alert.alert(
+        'Discard changes?',
+        isEditMode
+          ? "Your edits haven't been saved. Go back anyway?"
+          : "You have unsaved work. Go back anyway?",
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+        ]
+      );
+    } else {
+      router.back();
+    }
+  };
+
   const handleSave = () => {
     if (!regUpper && !isEditMode) {
       Alert.alert('Required', 'Please enter a vehicle registration.');
@@ -267,7 +297,7 @@ export default function AddJobScreen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={s.closeBtn} onPress={handleClose}>
           <Feather name="x" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{isEditMode ? 'Edit Job' : 'Log Work'}</Text>
