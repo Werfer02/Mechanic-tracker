@@ -712,6 +712,63 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   );
 }
 
+// ── EditVehicleModal ──────────────────────────────────────────────────────────
+
+function EditVehicleModal({ vehicle, onSave, onClose }: {
+  vehicle: Vehicle;
+  onSave: (make: string, model: string, mileage?: number) => void;
+  onClose: () => void;
+}) {
+  const [make, setMake]         = useState(vehicle.make);
+  const [model, setModel]       = useState(vehicle.model);
+  const [mileageInput, setMileage] = useState(vehicle.mileage?.toString() ?? '');
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
+    onSave(make.trim(), model.trim(), mileage);
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="p-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold">Edit Vehicle</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            <NumberPlate reg={vehicle.registration} size="sm" />
+          </p>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Make</FieldLabel>
+              <Input placeholder="e.g. Ford" value={make} onChange={e => setMake(e.target.value)} autoFocus />
+            </div>
+            <div>
+              <FieldLabel>Model</FieldLabel>
+              <Input placeholder="e.g. Focus" value={model} onChange={e => setModel(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Mileage (optional)</FieldLabel>
+            <Input
+              type="number"
+              placeholder="e.g. 45000"
+              value={mileageInput}
+              onChange={e => setMileage(e.target.value)}
+              min={0}
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <Btn variant="secondary" type="button" onClick={onClose} className="flex-1">Cancel</Btn>
+            <Btn variant="primary" type="submit" className="flex-1">Save Changes</Btn>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  );
+}
+
 // ── EditJobModal ──────────────────────────────────────────────────────────────
 
 function EditJobModal({ job, onSave, onClose }: {
@@ -1090,6 +1147,7 @@ function WorkshopView() {
   const [connectError, setConnectError]   = useState('');
   const [confirmDeleteVehicle, setConfirmDeleteVehicle] = useState<Vehicle | null>(null);
   const [editingJob, setEditingJob]       = useState<Job | null>(null);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [search, setSearch]               = useState('');
   const hasAutoSelected = useRef(false);
 
@@ -1264,7 +1322,15 @@ function WorkshopView() {
               <div className="px-6 py-4 border-b border-border shrink-0">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <NumberPlate reg={selectedVehicle.registration} size="lg" />
+                    <div className="flex items-center gap-2">
+                      <NumberPlate reg={selectedVehicle.registration} size="lg" />
+                      <button
+                        onClick={() => setEditingVehicle(selectedVehicle)}
+                        className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                        title="Edit vehicle">
+                        <PencilIcon />
+                      </button>
+                    </div>
                     {(selectedVehicle.make || selectedVehicle.model) && (
                       <div className="mt-1.5 text-sm text-muted-foreground">
                         {selectedVehicle.make} {selectedVehicle.model}
@@ -1354,6 +1420,16 @@ function WorkshopView() {
           message={`${confirmDeleteVehicle.registration} and all its jobs will be permanently deleted.`}
           onConfirm={() => { deleteVehicle(confirmDeleteVehicle.registration); setConfirmDeleteVehicle(null); }}
           onCancel={() => setConfirmDeleteVehicle(null)}
+        />
+      )}
+      {editingVehicle && (
+        <EditVehicleModal
+          vehicle={editingVehicle}
+          onSave={(make, model, mileage) => {
+            upsertVehicle(editingVehicle.registration, make, model, mileage);
+            setEditingVehicle(null);
+          }}
+          onClose={() => setEditingVehicle(null)}
         />
       )}
       {editingJob && (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Platform,
+  Modal, TextInput, Pressable, KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -21,12 +22,210 @@ function formatDate(dateStr: string) {
   return `${parseInt(d ?? '0', 10)} ${MONTHS_SHORT[parseInt(m ?? '1', 10) - 1]} ${y}`;
 }
 
+// ── EditVehicleModal ──────────────────────────────────────────────────────────
+
+interface EditVehicleModalProps {
+  visible: boolean;
+  make: string;
+  model: string;
+  mileage?: number;
+  onSave: (make: string, model: string, mileage?: number) => void;
+  onCancel: () => void;
+}
+
+function EditVehicleModal({ visible, make: initMake, model: initModel, mileage: initMileage, onSave, onCancel }: EditVehicleModalProps) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const [make, setMake] = useState(initMake);
+  const [model, setModel] = useState(initModel);
+  const [mileageInput, setMileageInput] = useState(initMileage !== undefined ? String(initMileage) : '');
+
+  // Reset fields when modal opens
+  React.useEffect(() => {
+    if (visible) {
+      setMake(initMake);
+      setModel(initModel);
+      setMileageInput(initMileage !== undefined ? String(initMileage) : '');
+    }
+  }, [visible, initMake, initModel, initMileage]);
+
+  function handleSave() {
+    const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
+    onSave(make.trim(), model.trim(), mileage);
+  }
+
+  const s = StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingBottom: (Platform.OS === 'web' ? 24 : insets.bottom) + 16,
+    },
+    handle: {
+      alignSelf: 'center',
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.border,
+      marginTop: 12,
+      marginBottom: 20,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      marginBottom: 20,
+    },
+    title: {
+      fontSize: 18,
+      fontFamily: 'Inter_700Bold',
+      color: colors.foreground,
+    },
+    closeBtn: {
+      padding: 4,
+    },
+    body: {
+      paddingHorizontal: 20,
+      gap: 16,
+    },
+    row: { flexDirection: 'row', gap: 12 },
+    field: { gap: 6 },
+    fieldFlex: { flex: 1, gap: 6 },
+    label: {
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: colors.mutedForeground,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    input: {
+      backgroundColor: colors.secondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      fontFamily: 'Inter_400Regular',
+      color: colors.foreground,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingHorizontal: 20,
+      marginTop: 24,
+    },
+    cancelBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: colors.secondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    saveBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+    },
+    cancelTxt: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: colors.foreground,
+    },
+    saveTxt: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: colors.primaryForeground,
+    },
+  });
+
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onCancel}>
+      <Pressable style={s.overlay} onPress={onCancel}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable onPress={() => {}} style={s.sheet}>
+            <View style={s.handle} />
+            <View style={s.titleRow}>
+              <Text style={s.title}>Edit Vehicle</Text>
+              <TouchableOpacity style={s.closeBtn} onPress={onCancel}>
+                <Feather name="x" size={22} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <View style={s.body}>
+              <View style={s.row}>
+                <View style={s.fieldFlex}>
+                  <Text style={s.label}>Make</Text>
+                  <TextInput
+                    style={s.input}
+                    placeholder="e.g. Ford"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={make}
+                    onChangeText={setMake}
+                    autoFocus
+                    returnKeyType="next"
+                  />
+                </View>
+                <View style={s.fieldFlex}>
+                  <Text style={s.label}>Model</Text>
+                  <TextInput
+                    style={s.input}
+                    placeholder="e.g. Focus"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={model}
+                    onChangeText={setModel}
+                    returnKeyType="next"
+                  />
+                </View>
+              </View>
+              <View style={s.field}>
+                <Text style={s.label}>Mileage (optional)</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="e.g. 45000"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={mileageInput}
+                  onChangeText={setMileageInput}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSave}
+                />
+              </View>
+            </View>
+            <View style={s.actions}>
+              <TouchableOpacity style={s.cancelBtn} onPress={onCancel}>
+                <Text style={s.cancelTxt}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
+                <Text style={s.saveTxt}>Save Changes</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ── VehicleDetailScreen ───────────────────────────────────────────────────────
+
 export default function VehicleDetailScreen() {
   const { reg } = useLocalSearchParams<{ reg: string }>();
   const registration = decodeURIComponent(reg ?? '');
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { vehicles, jobs, deleteJob, deleteVehicle, getJobsForVehicle, getLastService, getLastServiceEntry } = useTracker();
+  const { vehicles, jobs, deleteJob, deleteVehicle, upsertVehicle, getJobsForVehicle, getLastService, getLastServiceEntry } = useTracker();
 
   const vehicle = vehicles.find(v => v.registration === registration);
   const vehicleJobs = getJobsForVehicle(registration);
@@ -34,10 +233,16 @@ export default function VehicleDetailScreen() {
   const lastServiceEntry = getLastServiceEntry(registration);
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(false);
 
   const handleDeleteVehicle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setConfirmingDelete(true);
+  };
+
+  const handleEditVehicle = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditingVehicle(true);
   };
 
   const handleAddJob = () => {
@@ -130,6 +335,9 @@ export default function VehicleDetailScreen() {
             <Feather name="arrow-left" size={24} color={colors.foreground} />
           </TouchableOpacity>
           <View style={s.headerActions}>
+            <TouchableOpacity style={s.iconBtn} onPress={handleEditVehicle}>
+              <Feather name="edit-2" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
             <TouchableOpacity style={s.iconBtn} onPress={handleDeleteVehicle}>
               <Feather name="trash-2" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -242,6 +450,18 @@ export default function VehicleDetailScreen() {
         confirmLabel="Remove"
         onConfirm={() => { setConfirmingDelete(false); deleteVehicle(registration); router.back(); }}
         onCancel={() => setConfirmingDelete(false)}
+      />
+
+      <EditVehicleModal
+        visible={editingVehicle}
+        make={vehicle?.make ?? ''}
+        model={vehicle?.model ?? ''}
+        mileage={vehicle?.mileage}
+        onSave={(make, model, mileage) => {
+          upsertVehicle(registration, make, model, mileage);
+          setEditingVehicle(false);
+        }}
+        onCancel={() => setEditingVehicle(false)}
       />
     </View>
   );
