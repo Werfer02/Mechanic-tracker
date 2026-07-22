@@ -1,0 +1,1 @@
+- [Mobile version bump](mobile-version-bump.md) — always increment APP_VERSION in constants/version.ts with every mobile app change
