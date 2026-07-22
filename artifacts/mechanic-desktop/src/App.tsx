@@ -100,29 +100,37 @@ function purgeOldTombstones<T extends { _deleted?: boolean; _deletedAt?: string 
 }
 
 // ── useDesktopStore ───────────────────────────────────────────────────────────
-// Persistent local store — mirrors mobile's TrackerContext but uses localStorage.
+// Persistent local store — uses IndexedDB (via idb) for vehicles/jobs.
+import { loadVehicles, loadJobs, saveVehicles, saveJobs } from './db';
 
 function useDesktopStore() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [jobs,     setJobs]     = useState<Job[]>([]);
 
+  // Load from IndexedDB on mount; migrate any existing localStorage data once.
   useEffect(() => {
-    try {
-      const v = localStorage.getItem(LS_VEHICLES);
-      const j = localStorage.getItem(LS_JOBS);
-      if (v) setVehicles(JSON.parse(v));
-      if (j) setJobs(JSON.parse(j));
-    } catch { /* ignore */ }
+    (async () => {
+      try {
+        let v = await loadVehicles() as Vehicle[];
+        let j = await loadJobs() as Job[];
+        // One-time migration from localStorage
+        if (v.length === 0) {
+          const lsV = localStorage.getItem(LS_VEHICLES);
+          if (lsV) { v = JSON.parse(lsV); await saveVehicles(v); localStorage.removeItem(LS_VEHICLES); }
+        }
+        if (j.length === 0) {
+          const lsJ = localStorage.getItem(LS_JOBS);
+          if (lsJ) { j = JSON.parse(lsJ); await saveJobs(j); localStorage.removeItem(LS_JOBS); }
+        }
+        setVehicles(v);
+        setJobs(j);
+      } catch { /* ignore */ }
+    })();
   }, []);
 
-  const persistVehicles = (v: Vehicle[]) => {
-    setVehicles(v);
-    localStorage.setItem(LS_VEHICLES, JSON.stringify(v));
-  };
-  const persistJobs = (j: Job[]) => {
-    setJobs(j);
-    localStorage.setItem(LS_JOBS, JSON.stringify(j));
-  };
+  // Persist to IndexedDB whenever state changes (fire-and-forget).
+  useEffect(() => { saveVehicles(vehicles).catch(() => {}); }, [vehicles]);
+  useEffect(() => { saveJobs(jobs).catch(() => {}); }, [jobs]);
 
   /** Upsert a vehicle by registration. Make/model are optional. Un-deletes if previously deleted. */
   const upsertVehicle = useCallback((reg: string, make = '', model = '', mileage?: number): Vehicle => {
@@ -131,70 +139,44 @@ function useDesktopStore() {
     setVehicles(prev => {
       const existing = prev.find(v => v.registration === r);
       if (existing) {
-        // Un-delete and optionally update make/model/mileage
         const updated = prev.map(v =>
           v.registration === r
             ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model, ...(mileage !== undefined ? { mileage } : {}) }
             : v
         );
-        localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
         result = updated.find(v => v.registration === r);
         return updated;
       }
       const newV: Vehicle = { id: genId(), registration: r, make, model, ...(mileage !== undefined ? { mileage } : {}), createdAt: new Date().toISOString() };
       result = newV;
-      const updated = [...prev, newV];
-      localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
-      return updated;
+      return [...prev, newV];
     });
     return result ?? { id: genId(), registration: r, make, model, createdAt: new Date().toISOString() };
   }, []);
 
   const addJob = useCallback((data: Omit<Job, 'id' | 'createdAt'>): Job => {
     const job: Job = { ...data, id: genId(), createdAt: new Date().toISOString() };
-    setJobs(prev => {
-      const updated = [job, ...prev];
-      localStorage.setItem(LS_JOBS, JSON.stringify(updated));
-      return updated;
-    });
+    setJobs(prev => [job, ...prev]);
     return job;
   }, []);
 
   const deleteVehicle = useCallback((reg: string) => {
     const now = new Date().toISOString();
-    setVehicles(prev => {
-      const updated = prev.map(v => v.registration === reg ? { ...v, _deleted: true, _deletedAt: now } : v);
-      localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
-      return updated;
-    });
-    setJobs(prev => {
-      const updated = prev.map(j => j.vehicleRegistration === reg ? { ...j, _deleted: true, _deletedAt: now } : j);
-      localStorage.setItem(LS_JOBS, JSON.stringify(updated));
-      return updated;
-    });
+    setVehicles(prev => prev.map(v => v.registration === reg ? { ...v, _deleted: true, _deletedAt: now } : v));
+    setJobs(prev => prev.map(j => j.vehicleRegistration === reg ? { ...j, _deleted: true, _deletedAt: now } : j));
   }, []);
 
   const deleteJob = useCallback((id: string) => {
     const now = new Date().toISOString();
-    setJobs(prev => {
-      const updated = prev.map(j => j.id === id ? { ...j, _deleted: true, _deletedAt: now } : j);
-      localStorage.setItem(LS_JOBS, JSON.stringify(updated));
-      return updated;
-    });
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, _deleted: true, _deletedAt: now } : j));
   }, []);
 
   const updateJob = useCallback((id: string, changes: Partial<Omit<Job, 'id' | 'vehicleRegistration' | 'createdAt'>>) => {
-    setJobs(prev => {
-      const updated = prev.map(j => j.id === id && !j._deleted ? { ...j, ...changes } : j);
-      localStorage.setItem(LS_JOBS, JSON.stringify(updated));
-      return updated;
-    });
+    setJobs(prev => prev.map(j => j.id === id && !j._deleted ? { ...j, ...changes } : j));
   }, []);
 
   /** Overwrite all data — used by sync merge. */
   const replaceAll = useCallback((newV: Vehicle[], newJ: Job[]) => {
-    localStorage.setItem(LS_VEHICLES, JSON.stringify(newV));
-    localStorage.setItem(LS_JOBS, JSON.stringify(newJ));
     setVehicles(newV);
     setJobs(newJ);
   }, []);
