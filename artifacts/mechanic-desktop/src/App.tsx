@@ -680,7 +680,7 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
               <FieldLabel>Mileage at Service (optional)</FieldLabel>
               <Input
                 type="number"
-                placeholder="e.g. 45000"
+                placeholder="e.g. 45000 km"
                 value={mileageInput}
                 onChange={e => setMileageInput(e.target.value)}
                 min={0}
@@ -901,7 +901,7 @@ function JobCard({ job, onDelete }: { job: Job; onDelete: () => void }) {
             {job.isService && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
                 style={{ background: 'hsl(142 71% 45% / 0.15)', color: '#22C55E', border: '1px solid hsl(142 71% 45% / 0.3)' }}>
-                Service{job.mileageAtService !== undefined ? ` · ${job.mileageAtService.toLocaleString()} mi` : ''}
+                Service{job.mileageAtService !== undefined ? ` · ${job.mileageAtService.toLocaleString()} km` : ''}
               </span>
             )}
           </div>
@@ -1133,10 +1133,10 @@ function WorkshopView() {
                         <span>Last service: <span className="font-medium" style={{ color: '#22C55E' }}>{fmtDate(lastService.date)}</span></span>
                       )}
                       {lastService?.mileageAtService !== undefined && (
-                        <span>Service mileage: <span className="text-foreground">{lastService.mileageAtService.toLocaleString()} mi</span></span>
+                        <span>Service mileage: <span className="text-foreground">{lastService.mileageAtService.toLocaleString()} km</span></span>
                       )}
                       {selectedVehicle.mileage !== undefined && (
-                        <span>Current mileage: <span className="text-foreground">{selectedVehicle.mileage.toLocaleString()} mi</span></span>
+                        <span>Current mileage: <span className="text-foreground">{selectedVehicle.mileage.toLocaleString()} km</span></span>
                       )}
                       {vehicleJobs.length === 0 && !search && (
                         <span>No jobs logged yet</span>

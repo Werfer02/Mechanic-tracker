@@ -342,7 +342,7 @@ export default function AddJobScreen() {
               style={s.input}
               value={mileageInput}
               onChangeText={v => setMileageInput(v.replace(/[^0-9]/g, ''))}
-              placeholder="e.g. 45000"
+              placeholder="e.g. 45000 km"
               placeholderTextColor={colors.mutedForeground}
               keyboardType="numeric"
               returnKeyType="done"

@@ -93,7 +93,7 @@ export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEnt
               {vehicle.mileage !== undefined && (
                 <View style={s.stat}>
                   <Feather name="activity" size={13} color={colors.mutedForeground} />
-                  <Text style={s.statText}>{vehicle.mileage.toLocaleString()} mi</Text>
+                  <Text style={s.statText}>{vehicle.mileage.toLocaleString()} km</Text>
                 </View>
               )}
             </View>
