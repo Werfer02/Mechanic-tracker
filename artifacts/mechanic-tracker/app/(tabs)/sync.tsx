@@ -10,6 +10,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useColors } from '@/hooks/useColors';
 import { useTracker } from '@/context/TrackerContext';
 import { useSyncRoom } from '@/hooks/useSyncRoom';
+import { APP_VERSION } from '@/constants/version';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -585,6 +586,11 @@ export default function SyncScreen() {
             Example: http://192.168.1.x:3001/api
           </Text>
         </View>
+
+        {/* ── Version footer ── */}
+        <Text style={[s.lastSyncedText, { textAlign: 'center', marginTop: 24, marginBottom: 8, opacity: 0.4 }]}>
+          v{APP_VERSION}
+        </Text>
 
       </ScrollView>
 
