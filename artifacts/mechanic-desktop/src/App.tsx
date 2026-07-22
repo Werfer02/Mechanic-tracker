@@ -59,9 +59,9 @@ function qrUrl(data: string) {
 /**
  * Build the string encoded inside the QR code.
  *
- * When the desktop has a server URL configured (e.g. http://192.168.1.x:3001)
+ * When the desktop has a server URL configured (e.g. http://192.168.1.x:8080)
  * we embed the full mobile-compatible API base plus the code as a query param:
- *   http://192.168.1.x:3001/api?code=ABC123
+ *   http://192.168.1.x:8080/api?code=ABC123
  *
  * The mobile QR scanner parses this URL, extracts the code *and* the server URL
  * in one step — zero manual configuration needed.
@@ -71,7 +71,7 @@ function qrUrl(data: string) {
  */
 function makeQrData(code: string, serverUrl: string): string {
   if (!serverUrl) return code;
-  // Desktop convention: serverUrl has NO /api suffix (e.g. "http://x:3001").
+  // Desktop convention: serverUrl has NO /api suffix (e.g. "http://x:8080").
   // Mobile convention: needs /api appended.  Avoid double-appending.
   const base = serverUrl.replace(/\/+$/, '');
   const mobileBase = base.endsWith('/api') ? base : `${base}/api`;
@@ -340,9 +340,14 @@ function useServerUrl() {
   const [serverUrl, setServerUrlState] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem(LS_SERVER_URL) ?? '';
-    setServerUrlState(stored);
-    setBaseUrl(stored || null);
+    const stored = localStorage.getItem(LS_SERVER_URL);
+    // When no URL has ever been saved, default to the current page origin.
+    // In Docker this is http://192.168.1.x:8080 — nginx there already proxies
+    // /api/ to the API container, so mobile can hit the same host:port.
+    // The user can still override it manually if needed.
+    const url = (stored !== null && stored !== '') ? stored : window.location.origin;
+    setServerUrlState(url);
+    setBaseUrl(url || null);
   }, []);
 
   const updateServerUrl = useCallback((url: string) => {
@@ -702,7 +707,7 @@ function QrModal({ code, apiServerUrl, onClose }: { code: string; apiServerUrl: 
         </div>
         {!hasServerUrl && (
           <p className="text-[11px] text-amber-500/80 mb-4 text-left border border-amber-500/20 rounded-md p-2.5 bg-amber-500/5">
-            ⚠ No API Server URL set — QR contains only the room code. Open "Connect to mobile", scroll to API Server URL, and enter your server address (e.g. <span className="font-mono">http://192.168.1.x:3001</span>) so the QR auto-configures mobile.
+            ⚠ No API Server URL set — QR contains only the room code. Open "Connect to mobile", scroll to API Server URL, and enter the address you use to open this app (e.g. <span className="font-mono">http://192.168.1.x:8080</span>) so the QR auto-configures mobile.
           </p>
         )}
         <Btn variant="secondary" onClick={onClose} className="w-full justify-center">Close</Btn>
@@ -825,7 +830,7 @@ function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
           <input
             type="text"
             className="w-full rounded-md border px-3 py-2 text-sm font-mono bg-secondary border-border text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="http://192.168.1.x:3001"
+            placeholder="http://192.168.1.x:8080"
             value={localServerUrl}
             onChange={e => setLocalServerUrl(e.target.value)}
           />
@@ -842,7 +847,7 @@ function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
               {urlSaved ? '✓ Saved' : 'Save'}
             </Btn>
             <p className="text-xs text-muted-foreground">
-              Your API server address, e.g. <span className="font-mono">http://192.168.1.x:3001</span>. Leave empty to use relative paths (same-origin / nginx). When set, the QR code auto-configures the mobile app.
+              The address you use to open this app, e.g. <span className="font-mono">http://192.168.1.x:8080</span>. Auto-filled from your browser URL — only change if needed. The QR code uses this to auto-configure the mobile app.
             </p>
           </div>
         </div>
