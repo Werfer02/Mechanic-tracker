@@ -183,7 +183,20 @@ export default function AddJobScreen() {
       const uri = asset.base64
         ? `data:image/jpeg;base64,${asset.base64}`
         : asset.uri;
-      setPhotos(prev => [...prev, uri]);
+      // Warn on oversized photos so mechanics know before sync fails
+      const sizeMb = uri.length / (1024 * 1024);
+      if (sizeMb > 15) {
+        Alert.alert(
+          'Large photo',
+          `This photo is about ${sizeMb.toFixed(1)} MB. It may fail to sync. Use a smaller image or reduce photo quality in your camera settings.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Attach Anyway', onPress: () => setPhotos(prev => [...prev, uri]) },
+          ]
+        );
+      } else {
+        setPhotos(prev => [...prev, uri]);
+      }
     }
   };
 
