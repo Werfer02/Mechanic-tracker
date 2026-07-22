@@ -19,10 +19,11 @@ function formatDate(dateStr: string) {
 interface Props {
   job: Job;
   onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
   showVehicle?: boolean;
 }
 
-export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
+export default function JobCard({ job, onDelete, onEdit, showVehicle = true }: Props) {
   const colors = useColors();
   const [confirming, setConfirming] = useState(false);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
@@ -110,11 +111,18 @@ export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
               )}
             </View>
           </View>
-          {onDelete && (
-            <TouchableOpacity style={s.deleteBtn} onPress={handleDeletePress}>
-              <Feather name="trash-2" size={17} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          )}
+          <View style={{ flexDirection: 'row', gap: 2 }}>
+            {onEdit && (
+              <TouchableOpacity style={s.deleteBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(job.id); }}>
+                <Feather name="edit-2" size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            )}
+            {onDelete && (
+              <TouchableOpacity style={s.deleteBtn} onPress={handleDeletePress}>
+                <Feather name="trash-2" size={17} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         <Text style={s.desc}>{job.description}</Text>
         {!!job.notes && <Text style={s.notes}>{job.notes}</Text>}

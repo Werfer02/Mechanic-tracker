@@ -183,6 +183,14 @@ function useDesktopStore() {
     });
   }, []);
 
+  const updateJob = useCallback((id: string, changes: Partial<Omit<Job, 'id' | 'vehicleRegistration' | 'createdAt'>>) => {
+    setJobs(prev => {
+      const updated = prev.map(j => j.id === id && !j._deleted ? { ...j, ...changes } : j);
+      localStorage.setItem(LS_JOBS, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   /** Overwrite all data — used by sync merge. */
   const replaceAll = useCallback((newV: Vehicle[], newJ: Job[]) => {
     localStorage.setItem(LS_VEHICLES, JSON.stringify(newV));
@@ -200,7 +208,7 @@ function useDesktopStore() {
     jobs: visibleJobs,
     syncVehicles: vehicles,
     syncJobs: jobs,
-    upsertVehicle, addJob, deleteVehicle, deleteJob, replaceAll,
+    upsertVehicle, addJob, updateJob, deleteVehicle, deleteJob, replaceAll,
   };
 }
 
@@ -446,6 +454,12 @@ const PlusIcon = () => (
 const TrashIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+const PencilIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
   </svg>
 );
 
@@ -698,6 +712,95 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   );
 }
 
+// ── EditJobModal ──────────────────────────────────────────────────────────────
+
+function EditJobModal({ job, onSave, onClose }: {
+  job: Job;
+  onSave: (id: string, changes: Partial<Omit<Job, 'id' | 'vehicleRegistration' | 'createdAt'>>) => void;
+  onClose: () => void;
+}) {
+  const [date, setDate]               = useState(job.date);
+  const [time, setTime]               = useState(job.time);
+  const [description, setDesc]        = useState(job.description);
+  const [notes, setNotes]             = useState(job.notes);
+  const [isService, setIsService]     = useState(job.isService);
+  const [mileageInput, setMileageInput] = useState(job.mileageAtService?.toString() ?? '');
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!description.trim()) return;
+    const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
+    onSave(job.id, {
+      date, time,
+      description: description.trim(),
+      notes: notes.trim(),
+      isService,
+      mileageAtService: mileage,
+    });
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="p-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold">Edit Job</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Vehicle: <NumberPlate reg={job.vehicleRegistration} size="sm" />
+          </p>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          {/* Date + Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Date</FieldLabel>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            </div>
+            <div>
+              <FieldLabel>Time</FieldLabel>
+              <Input type="time" value={time} onChange={e => setTime(e.target.value)} required />
+            </div>
+          </div>
+          {/* Description */}
+          <div>
+            <FieldLabel>Description <span className="text-destructive">*</span></FieldLabel>
+            <Input
+              placeholder="e.g. Oil change, brake pads..."
+              value={description}
+              onChange={e => setDesc(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          {/* Notes */}
+          <div>
+            <FieldLabel>Notes</FieldLabel>
+            <Textarea placeholder="Optional notes..." rows={3} value={notes} onChange={e => setNotes(e.target.value)} />
+          </div>
+          {/* Full Service toggle */}
+          <Toggle checked={isService} onChange={setIsService} label="Full Service" sub="Mark this job as a complete service" />
+          {/* Mileage at Service */}
+          {isService && (
+            <div>
+              <FieldLabel>Mileage at Service (optional)</FieldLabel>
+              <Input
+                type="number"
+                placeholder="e.g. 45000 km"
+                value={mileageInput}
+                onChange={e => setMileageInput(e.target.value)}
+                min={0}
+              />
+            </div>
+          )}
+          <div className="flex gap-3 pt-1">
+            <Btn variant="secondary" type="button" onClick={onClose} className="flex-1">Cancel</Btn>
+            <Btn variant="primary" type="submit" className="flex-1" disabled={!description.trim()}>Save Changes</Btn>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  );
+}
+
 // ── QrModal ───────────────────────────────────────────────────────────────────
 
 function QrModal({ code, apiServerUrl, onClose }: { code: string; apiServerUrl: string; onClose: () => void }) {
@@ -882,7 +985,7 @@ function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
 
 // ── JobCard ───────────────────────────────────────────────────────────────────
 
-function JobCard({ job, onDelete }: { job: Job; onDelete: () => void }) {
+function JobCard({ job, onDelete, onEdit }: { job: Job; onDelete: () => void; onEdit: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const dateStr = job.date ? fmtDate(job.date) : '—';
 
@@ -907,12 +1010,20 @@ function JobCard({ job, onDelete }: { job: Job; onDelete: () => void }) {
           </div>
           {job.notes && <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">{job.notes}</p>}
         </div>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="opacity-0 group-hover:opacity-100 shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-          title="Delete job">
-          <TrashIcon />
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+          <button
+            onClick={onEdit}
+            className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+            title="Edit job">
+            <PencilIcon />
+          </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+            title="Delete job">
+            <TrashIcon />
+          </button>
+        </div>
       </div>
 
       {confirmDelete && (
@@ -935,7 +1046,7 @@ function WorkshopView() {
   const theme     = useTheme();
   const serverCfg = useServerUrl();
 
-  const { vehicles, jobs, upsertVehicle, addJob, deleteVehicle, deleteJob } = store;
+  const { vehicles, jobs, upsertVehicle, addJob, updateJob, deleteVehicle, deleteJob } = store;
   const { syncCode, syncStatus, lastSynced, connect, createAndConnect, disconnect, syncNow } = sync;
 
   const [selectedReg, setSelectedReg]     = useState<string | null>(null);
@@ -945,6 +1056,7 @@ function WorkshopView() {
   const [showQr, setShowQr]               = useState(false);
   const [connectError, setConnectError]   = useState('');
   const [confirmDeleteVehicle, setConfirmDeleteVehicle] = useState<Vehicle | null>(null);
+  const [editingJob, setEditingJob]       = useState<Job | null>(null);
   const [search, setSearch]               = useState('');
   const hasAutoSelected = useRef(false);
 
@@ -1172,7 +1284,7 @@ function WorkshopView() {
                   </div>
                 )}
                 {vehicleJobs.map(job => (
-                  <JobCard key={job.id} job={job} onDelete={() => deleteJob(job.id)} />
+                  <JobCard key={job.id} job={job} onDelete={() => deleteJob(job.id)} onEdit={() => setEditingJob(job)} />
                 ))}
               </div>
             </>
@@ -1209,6 +1321,20 @@ function WorkshopView() {
           message={`${confirmDeleteVehicle.registration} and all its jobs will be permanently deleted.`}
           onConfirm={() => { deleteVehicle(confirmDeleteVehicle.registration); setConfirmDeleteVehicle(null); }}
           onCancel={() => setConfirmDeleteVehicle(null)}
+        />
+      )}
+      {editingJob && (
+        <EditJobModal
+          job={editingJob}
+          onSave={(id, changes) => {
+            updateJob(id, changes);
+            // Update vehicle mileage when a service mileage is edited
+            if (changes.isService && changes.mileageAtService !== undefined) {
+              upsertVehicle(editingJob.vehicleRegistration, '', '', changes.mileageAtService);
+            }
+            setEditingJob(null);
+          }}
+          onClose={() => setEditingJob(null)}
         />
       )}
 

@@ -35,6 +35,7 @@ interface TrackerContextType {
   syncJobs: Job[];
   isLoading: boolean;
   addJob: (job: Omit<Job, 'id' | 'createdAt'>) => Job;
+  updateJob: (id: string, changes: Partial<Omit<Job, 'id' | 'vehicleRegistration' | 'createdAt'>>) => void;
   deleteJob: (id: string) => void;
   upsertVehicle: (registration: string, make?: string, model?: string, mileage?: number) => Vehicle;
   deleteVehicle: (registration: string) => void;
@@ -99,6 +100,16 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
     return job;
+  }, []);
+
+  const updateJob = useCallback((id: string, changes: Partial<Omit<Job, 'id' | 'vehicleRegistration' | 'createdAt'>>) => {
+    setJobs(prev => {
+      const updated = prev.map(j =>
+        j.id === id && !j._deleted ? { ...j, ...changes } : j
+      );
+      AsyncStorage.setItem(JOBS_KEY, JSON.stringify(updated));
+      return updated;
+    });
   }, []);
 
   const deleteJob = useCallback((id: string) => {
@@ -213,7 +224,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       syncVehicles: vehicles,  // raw — includes tombstones, pass to sync only
       syncJobs: jobs,
       isLoading,
-      addJob, deleteJob, upsertVehicle, deleteVehicle,
+      addJob, updateJob, deleteJob, upsertVehicle, deleteVehicle,
       getJobsForVehicle, getLastService, getLastServiceEntry,
       replaceData,
     }}>

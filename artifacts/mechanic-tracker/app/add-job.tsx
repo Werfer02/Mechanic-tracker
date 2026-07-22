@@ -8,7 +8,7 @@ import { useTracker } from '@/context/TrackerContext';
 import DatePickerModal from '@/components/DatePickerModal';
 import TimePickerModal from '@/components/TimePickerModal';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -35,8 +35,11 @@ function nowTime() {
 
 export default function AddJobScreen() {
   const colors = useColors();
-  const { addJob, upsertVehicle, vehicles } = useTracker();
+  const { addJob, updateJob, upsertVehicle, vehicles, jobs } = useTracker();
   const insets = useSafeAreaInsets();
+  const { jobId } = useLocalSearchParams<{ jobId?: string }>();
+  const isEditMode = !!jobId;
+  const editJob = isEditMode ? jobs.find(j => j.id === jobId) : undefined;
 
   const [registration, setRegistration] = useState('');
   const [make, setMake] = useState('');
@@ -52,6 +55,26 @@ export default function AddJobScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  // Pre-fill all fields when opening in edit mode (jobs load async from storage)
+  const initializedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (editJob && !initializedRef.current) {
+      initializedRef.current = true;
+      const vehicle = vehicles.find(v => v.registration === editJob.vehicleRegistration);
+      setRegistration(editJob.vehicleRegistration);
+      setMake(vehicle?.make ?? '');
+      setModel(vehicle?.model ?? '');
+      const [y, m, d] = editJob.date.split('-').map(Number);
+      setSelectedDate(new Date(y ?? 2024, (m ?? 1) - 1, d ?? 1));
+      setSelectedTime(editJob.time);
+      setDescription(editJob.description);
+      setNotes(editJob.notes);
+      setIsService(editJob.isService);
+      setMileageInput(editJob.mileageAtService?.toString() ?? '');
+      setPhotos(editJob.photos ?? []);
+    }
+  }, [editJob, vehicles]);
+
   const regUpper = registration.toUpperCase().trim();
 
   const suggestions = vehicles.filter(v =>
@@ -66,7 +89,7 @@ export default function AddJobScreen() {
   };
 
   const handleSave = () => {
-    if (!regUpper) {
+    if (!regUpper && !isEditMode) {
       Alert.alert('Required', 'Please enter a vehicle registration.');
       return;
     }
@@ -76,17 +99,34 @@ export default function AddJobScreen() {
     }
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    upsertVehicle(regUpper, make.trim(), model.trim(), mileage);
-    addJob({
-      vehicleRegistration: regUpper,
-      date: toISODate(selectedDate),
-      time: selectedTime,
-      description: description.trim(),
-      notes: notes.trim(),
-      isService,
-      ...(mileage !== undefined ? { mileageAtService: mileage } : {}),
-      ...(photos.length > 0 ? { photos } : {}),
-    });
+
+    if (isEditMode && jobId && editJob) {
+      updateJob(jobId, {
+        date: toISODate(selectedDate),
+        time: selectedTime,
+        description: description.trim(),
+        notes: notes.trim(),
+        isService,
+        mileageAtService: mileage,
+        photos: photos.length > 0 ? photos : undefined,
+      });
+      // Update vehicle mileage if a service mileage was set/changed
+      if (mileage !== undefined) {
+        upsertVehicle(editJob.vehicleRegistration, '', '', mileage);
+      }
+    } else {
+      upsertVehicle(regUpper, make.trim(), model.trim(), mileage);
+      addJob({
+        vehicleRegistration: regUpper,
+        date: toISODate(selectedDate),
+        time: selectedTime,
+        description: description.trim(),
+        notes: notes.trim(),
+        isService,
+        ...(mileage !== undefined ? { mileageAtService: mileage } : {}),
+        ...(photos.length > 0 ? { photos } : {}),
+      });
+    }
     router.back();
   };
 
@@ -230,7 +270,7 @@ export default function AddJobScreen() {
         <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
           <Feather name="x" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Log Work</Text>
+        <Text style={s.headerTitle}>{isEditMode ? 'Edit Job' : 'Log Work'}</Text>
         <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
           <Text style={s.saveBtnText}>Save</Text>
         </TouchableOpacity>
@@ -245,16 +285,23 @@ export default function AddJobScreen() {
         {/* Vehicle Registration */}
         <View style={s.section}>
           <Text style={s.label}>Vehicle Registration</Text>
-          <TextInput
-            style={[s.input, s.regInput]}
-            value={registration}
-            onChangeText={v => { setRegistration(v); setShowSuggestions(true); }}
-            placeholder="e.g. ABC 123"
-            placeholderTextColor={colors.mutedForeground}
-            autoCapitalize="characters"
-            returnKeyType="done"
-          />
-          {showSuggestions && suggestions.length > 0 && (
+          {isEditMode ? (
+            /* Locked in edit mode — can't reassign a job to a different vehicle */
+            <View style={[s.input, { opacity: 0.6, justifyContent: 'center' }]}>
+              <Text style={[s.regInput, { color: colors.foreground }]}>{registration}</Text>
+            </View>
+          ) : (
+            <TextInput
+              style={[s.input, s.regInput]}
+              value={registration}
+              onChangeText={v => { setRegistration(v); setShowSuggestions(true); }}
+              placeholder="e.g. ABC 123"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="characters"
+              returnKeyType="done"
+            />
+          )}
+          {!isEditMode && showSuggestions && suggestions.length > 0 && (
             <View style={s.suggestionsContainer}>
               {suggestions.map((v, i) => (
                 <TouchableOpacity
