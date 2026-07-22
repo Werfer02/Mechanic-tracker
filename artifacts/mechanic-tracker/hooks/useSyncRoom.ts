@@ -142,11 +142,9 @@ export function useSyncRoom() {
     setStatus('syncing');
     setErrorMsg(null);
     try {
-      // Strip photos from tombstones before pushing: deleted jobs don't need images,
-      // and base64 data URIs can bloat the sync payload to >1 MB causing 413 errors.
-      const localJobsToPush = localJobs.map(j =>
-        j._deleted ? { ...j, photos: undefined } : j
-      );
+      // Strip photos from every job before pushing — base64 images bloat the
+      // sync payload to many MB and cause 413 errors. Photos are mobile-only.
+      const localJobsToPush = localJobs.map(({ photos: _p, ...j }) => j as Job);
 
       // 1. Pull
       const pullRes = await fetch(`${apiBase()}/sync/rooms/${activeCode}`);
