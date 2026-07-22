@@ -60,9 +60,13 @@ export function useSyncRoom() {
    *  callbacks pick it up without waiting for a re-render. */
   const setServerUrl = useCallback(async (url: string) => {
     const trimmed = url.trim();
-    await AsyncStorage.setItem(SERVER_URL_KEY, trimmed);
-    setServerUrlState(trimmed);
+    // Update the ref and state synchronously so any in-flight or immediately
+    // scheduled API calls (e.g. joinRoom 300 ms after a QR scan) see the new
+    // URL without having to await this function.
     serverUrlRef.current = trimmed;
+    setServerUrlState(trimmed);
+    // Persist in the background — no need to block callers on this.
+    await AsyncStorage.setItem(SERVER_URL_KEY, trimmed);
   }, []);
 
   // ── API helpers ─────────────────────────────────────────────────────────────
