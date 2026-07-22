@@ -45,6 +45,7 @@ export default function AddJobScreen() {
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
   const [isService, setIsService] = useState(false);
+  const [mileageInput, setMileageInput] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -71,8 +72,9 @@ export default function AddJobScreen() {
       Alert.alert('Required', 'Please describe the work done.');
       return;
     }
+    const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    upsertVehicle(regUpper, make.trim(), model.trim());
+    upsertVehicle(regUpper, make.trim(), model.trim(), mileage);
     addJob({
       vehicleRegistration: regUpper,
       date: toISODate(selectedDate),
@@ -80,6 +82,7 @@ export default function AddJobScreen() {
       description: description.trim(),
       notes: notes.trim(),
       isService,
+      ...(mileage !== undefined ? { mileageAtService: mileage } : {}),
     });
     router.back();
   };
@@ -288,6 +291,22 @@ export default function AddJobScreen() {
             <View style={[s.toggleThumb, { alignSelf: isService ? 'flex-end' : 'flex-start' }]} />
           </View>
         </TouchableOpacity>
+
+        {/* Mileage at Service — only shown when Full Service is on */}
+        {isService && (
+          <View style={s.section}>
+            <Text style={s.label}>Mileage at Service (optional)</Text>
+            <TextInput
+              style={s.input}
+              value={mileageInput}
+              onChangeText={v => setMileageInput(v.replace(/[^0-9]/g, ''))}
+              placeholder="e.g. 45000"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+          </View>
+        )}
 
         {/* Description */}
         <View style={s.section}>

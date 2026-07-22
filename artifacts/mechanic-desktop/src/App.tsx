@@ -16,6 +16,7 @@ interface Vehicle {
   registration: string;
   make: string;
   model: string;
+  mileage?: number;
   createdAt: string;
   _deleted?: boolean;
   _deletedAt?: string;
@@ -29,6 +30,7 @@ interface Job {
   description: string;
   notes: string;
   isService: boolean;
+  mileageAtService?: number;
   createdAt: string;
   _deleted?: boolean;
   _deletedAt?: string;
@@ -123,23 +125,23 @@ function useDesktopStore() {
   };
 
   /** Upsert a vehicle by registration. Make/model are optional. Un-deletes if previously deleted. */
-  const upsertVehicle = useCallback((reg: string, make = '', model = ''): Vehicle => {
+  const upsertVehicle = useCallback((reg: string, make = '', model = '', mileage?: number): Vehicle => {
     const r = reg.toUpperCase().trim().replace(/\s+/g, '');
     let result: Vehicle | undefined;
     setVehicles(prev => {
       const existing = prev.find(v => v.registration === r);
       if (existing) {
-        // Un-delete and optionally update make/model
+        // Un-delete and optionally update make/model/mileage
         const updated = prev.map(v =>
           v.registration === r
-            ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model }
+            ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model, ...(mileage !== undefined ? { mileage } : {}) }
             : v
         );
         localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
         result = updated.find(v => v.registration === r);
         return updated;
       }
-      const newV: Vehicle = { id: genId(), registration: r, make, model, createdAt: new Date().toISOString() };
+      const newV: Vehicle = { id: genId(), registration: r, make, model, ...(mileage !== undefined ? { mileage } : {}), createdAt: new Date().toISOString() };
       result = newV;
       const updated = [...prev, newV];
       localStorage.setItem(LS_VEHICLES, JSON.stringify(updated));
@@ -560,6 +562,7 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   const [description, setDesc]      = useState('');
   const [notes, setNotes]           = useState('');
   const [isService, setIsService]   = useState(false);
+  const [mileageInput, setMileageInput] = useState('');
   const [showNewVehicle, setShowNew] = useState(false);
 
   const reg = regInput.trim().toUpperCase().replace(/\s+/g, '');
@@ -569,7 +572,14 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!reg || !description.trim()) return;
-    onAdd(reg, make.trim(), model.trim(), { date, time, description: description.trim(), notes: notes.trim(), isService });
+    const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
+    onAdd(reg, make.trim(), model.trim(), {
+      date, time,
+      description: description.trim(),
+      notes: notes.trim(),
+      isService,
+      ...(mileage !== undefined ? { mileageAtService: mileage } : {}),
+    });
   }
 
   return (
@@ -663,6 +673,20 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
 
           {/* Full Service toggle */}
           <Toggle checked={isService} onChange={setIsService} label="Full Service" sub="Mark this job as a complete service" />
+
+          {/* Mileage at Service — only shown when Full Service is toggled */}
+          {isService && (
+            <div>
+              <FieldLabel>Mileage at Service (optional)</FieldLabel>
+              <Input
+                type="number"
+                placeholder="e.g. 45000"
+                value={mileageInput}
+                onChange={e => setMileageInput(e.target.value)}
+                min={0}
+              />
+            </div>
+          )}
 
           <div className="flex gap-3 pt-1">
             <Btn variant="secondary" type="button" onClick={onClose} className="flex-1">Cancel</Btn>
@@ -877,7 +901,7 @@ function JobCard({ job, onDelete }: { job: Job; onDelete: () => void }) {
             {job.isService && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
                 style={{ background: 'hsl(142 71% 45% / 0.15)', color: '#22C55E', border: '1px solid hsl(142 71% 45% / 0.3)' }}>
-                Service
+                Service{job.mileageAtService !== undefined ? ` · ${job.mileageAtService.toLocaleString()} mi` : ''}
               </span>
             )}
           </div>
@@ -956,8 +980,8 @@ function WorkshopView() {
   }
 
   function handleAddJob(reg: string, make: string, model: string, jobData: Omit<Job, 'id' | 'createdAt' | 'vehicleRegistration'>) {
-    // Auto-create vehicle if it doesn't exist
-    if (!vehicles.find(v => v.registration === reg)) upsertVehicle(reg, make, model);
+    // Upsert vehicle — also updates mileage when a service with mileage is logged
+    upsertVehicle(reg, make, model, jobData.mileageAtService);
     addJob({ ...jobData, vehicleRegistration: reg });
     setSelectedReg(reg);
     setShowAddJob(false);
@@ -1107,6 +1131,12 @@ function WorkshopView() {
                       )}
                       {lastService && (
                         <span>Last service: <span className="font-medium" style={{ color: '#22C55E' }}>{fmtDate(lastService.date)}</span></span>
+                      )}
+                      {lastService?.mileageAtService !== undefined && (
+                        <span>Service mileage: <span className="text-foreground">{lastService.mileageAtService.toLocaleString()} mi</span></span>
+                      )}
+                      {selectedVehicle.mileage !== undefined && (
+                        <span>Current mileage: <span className="text-foreground">{selectedVehicle.mileage.toLocaleString()} mi</span></span>
                       )}
                       {vehicleJobs.length === 0 && !search && (
                         <span>No jobs logged yet</span>

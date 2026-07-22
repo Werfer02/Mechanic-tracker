@@ -6,6 +6,7 @@ export interface Vehicle {
   registration: string;
   make: string;
   model: string;
+  mileage?: number;
   createdAt: string;
   _deleted?: boolean;
   _deletedAt?: string;
@@ -19,6 +20,7 @@ export interface Job {
   description: string;
   notes: string;
   isService: boolean;
+  mileageAtService?: number;
   createdAt: string;
   _deleted?: boolean;
   _deletedAt?: string;
@@ -33,7 +35,7 @@ interface TrackerContextType {
   isLoading: boolean;
   addJob: (job: Omit<Job, 'id' | 'createdAt'>) => Job;
   deleteJob: (id: string) => void;
-  upsertVehicle: (registration: string, make?: string, model?: string) => Vehicle;
+  upsertVehicle: (registration: string, make?: string, model?: string, mileage?: number) => Vehicle;
   deleteVehicle: (registration: string) => void;
   getJobsForVehicle: (registration: string) => Job[];
   getLastService: (registration: string) => Job | null;
@@ -107,16 +109,22 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const upsertVehicle = useCallback((registration: string, make = '', model = ''): Vehicle => {
+  const upsertVehicle = useCallback((registration: string, make = '', model = '', mileage?: number): Vehicle => {
     const reg = registration.toUpperCase().trim();
     let existing: Vehicle | undefined;
     setVehicles(prev => {
       existing = prev.find(v => v.registration === reg);
       if (existing) {
-        // Un-delete if previously deleted, and optionally update make/model
+        // Un-delete if previously deleted, and optionally update make/model/mileage
         const updated = prev.map(v =>
           v.registration === reg
-            ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model }
+            ? {
+                ...v,
+                _deleted: undefined,
+                make: make || v.make,
+                model: model || v.model,
+                ...(mileage !== undefined ? { mileage } : {}),
+              }
             : v
         );
         AsyncStorage.setItem(VEHICLES_KEY, JSON.stringify(updated));
@@ -128,6 +136,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         registration: reg,
         make,
         model,
+        ...(mileage !== undefined ? { mileage } : {}),
         createdAt: new Date().toISOString(),
       };
       existing = newVehicle;

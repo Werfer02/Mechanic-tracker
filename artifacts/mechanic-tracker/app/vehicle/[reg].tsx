@@ -161,6 +161,14 @@ export default function VehicleDetailScreen() {
             </Text>
             <Text style={s.statLabel}>Last Work</Text>
           </View>
+          {vehicle?.mileage !== undefined && (
+            <View style={s.statCard}>
+              <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
+                {vehicle.mileage.toLocaleString()}
+              </Text>
+              <Text style={s.statLabel}>Mileage</Text>
+            </View>
+          )}
         </View>
 
         {lastServiceEntry ? (

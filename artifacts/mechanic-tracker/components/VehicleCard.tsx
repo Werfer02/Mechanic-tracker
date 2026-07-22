@@ -90,6 +90,12 @@ export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEnt
                 <Feather name="tool" size={13} color={colors.primary} />
                 <Text style={s.statText}>{jobCount} {jobCount === 1 ? 'job' : 'jobs'}</Text>
               </View>
+              {vehicle.mileage !== undefined && (
+                <View style={s.stat}>
+                  <Feather name="activity" size={13} color={colors.mutedForeground} />
+                  <Text style={s.statText}>{vehicle.mileage.toLocaleString()} mi</Text>
+                </View>
+              )}
             </View>
           </View>
           <View style={s.actions}>
