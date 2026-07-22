@@ -1,0 +1,34 @@
+.1" 200 433 "-" "okhttp/4.12.0" "-"
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:32:54 +0000] "PUT /api/sync/rooms/7NY9ZR HTTP/1.1" 200 40 "-" "okhttp/4.12.0" "-"
+api-1      | {"level":30,"time":1784755974123,"pid":74,"hostname":"20a85df0200d","req":{"id":16,"method":"PUT","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":10,"msg":"request completed"}
+
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:02 +0000] "GET /api/sync/rooms/7NY9ZR HTTP/1.1" 200 433 "-" "okhttp/4.12.0" "-"
+api-1      | {"level":30,"time":1784755982002,"pid":74,"hostname":"20a85df0200d","req":{"id":17,"method":"GET","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":4,"msg":"request completed"}
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:02 +0000] "PUT /api/sync/rooms/7NY9ZR HTTP/1.1" 200 40 "-" "okhttp/4.12.0" "-"
+api-1      | {"level":30,"time":1784755982144,"pid":74,"hostname":"20a85df0200d","req":{"id":18,"method":"PUT","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":45,"msg":"request completed"}
+
+
+api-1      | {"level":30,"time":1784755991321,"pid":74,"hostname":"20a85df0200d","req":{"id":19,"method":"GET","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:11 +0000] "GET /api/sync/rooms/7NY9ZR HTTP/1.1" 200 433 "-" "okhttp/4.12.0" "-"
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:11 +0000] "PUT /api/sync/rooms/7NY9ZR HTTP/1.1" 200 40 "-" "okhttp/4.12.0" "-"
+api-1      | {"level":30,"time":1784755991463,"pid":74,"hostname":"20a85df0200d","req":{"id":20,"method":"PUT","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":45,"msg":"request completed"}
+
+
+api-1      | {"level":30,"time":1784755994495,"pid":74,"hostname":"20a85df0200d","req":{"id":21,"method":"GET","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":4,"msg":"request completed"}
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:14 +0000] "GET /api/sync/rooms/7NY9ZR HTTP/1.1" 200 433 "-" "okhttp/4.12.0" "-"
+
+
+desktop-1  | 2026/07/22 21:33:14 [error] 38#38: *21 client intended to send too large body: 1947989 bytes, client: 192.168.1.3, server: _, request: "PUT /api/sync/rooms/7NY9ZR HTTP/1.1", host: "192.168.1.8:8080"
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:15 +0000] "PUT /api/sync/rooms/7NY9ZR HTTP/1.1" 413 183 "-" "okhttp/4.12.0" "-"
+
+
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:19 +0000] "GET /api/sync/rooms/7NY9ZR HTTP/1.1" 200 433 "-" "okhttp/4.12.0" "-"
+api-1      | {"level":30,"time":1784755999343,"pid":74,"hostname":"20a85df0200d","req":{"id":22,"method":"GET","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+desktop-1  | 2026/07/22 21:33:19 [error] 39#39: *32 client intended to send too large body: 1947989 bytes, client: 192.168.1.3, server: _, request: "PUT /api/sync/rooms/7NY9ZR HTTP/1.1", host: "192.168.1.8:8080"
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:19 +0000] "PUT /api/sync/rooms/7NY9ZR HTTP/1.1" 413 183 "-" "okhttp/4.12.0" "-"
+
+
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:27 +0000] "GET /api/sync/rooms/7NY9ZR HTTP/1.1" 200 433 "-" "okhttp/4.12.0" "-"
+api-1      | {"level":30,"time":1784756007353,"pid":74,"hostname":"20a85df0200d","req":{"id":23,"method":"GET","url":"/api/sync/rooms/7NY9ZR"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+desktop-1  | 2026/07/22 21:33:27 [error] 40#40: *34 client intended to send too large body: 1947989 bytes, client: 192.168.1.3, server: _, request: "PUT /api/sync/rooms/7NY9ZR HTTP/1.1", host: "192.168.1.8:8080"
+desktop-1  | 192.168.1.3 - - [22/Jul/2026:21:33:27 +0000] "PUT /api/sync/rooms/7NY9ZR HTTP/1.1" 413 183 "-" "okhttp/4.12.0" "-"
