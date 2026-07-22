@@ -21,6 +21,7 @@ export interface Job {
   notes: string;
   isService: boolean;
   mileageAtService?: number;
+  photos?: string[];
   createdAt: string;
   _deleted?: boolean;
   _deletedAt?: string;

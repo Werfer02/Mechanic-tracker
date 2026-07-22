@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Platform, Alert,
+  ScrollView, Platform, Alert, Image,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useTracker } from '@/context/TrackerContext';
@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import * as ImagePicker from 'expo-image-picker';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -46,6 +47,7 @@ export default function AddJobScreen() {
   const [notes, setNotes] = useState('');
   const [isService, setIsService] = useState(false);
   const [mileageInput, setMileageInput] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -83,8 +85,30 @@ export default function AddJobScreen() {
       notes: notes.trim(),
       isService,
       ...(mileage !== undefined ? { mileageAtService: mileage } : {}),
+      ...(photos.length > 0 ? { photos } : {}),
     });
     router.back();
+  };
+
+  const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow access to your photo library to attach photos to jobs.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      base64: true,
+      allowsEditing: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const uri = asset.base64
+        ? `data:image/jpeg;base64,${asset.base64}`
+        : asset.uri;
+      setPhotos(prev => [...prev, uri]);
+    }
   };
 
   const s = StyleSheet.create({
@@ -159,6 +183,24 @@ export default function AddJobScreen() {
     suggestionMM: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' },
     makeModelRow: { flexDirection: 'row', gap: 10 },
     makeInput: { flex: 1 },
+    photoScroll: { marginTop: 4 },
+    photoScrollContent: { gap: 8, paddingRight: 4 },
+    photoThumbWrap: { position: 'relative' },
+    photoThumb: { width: 80, height: 80, borderRadius: 10, backgroundColor: colors.secondary },
+    photoRemoveBtn: {
+      position: 'absolute', top: -6, right: -6,
+      backgroundColor: '#EF4444',
+      borderRadius: 10, width: 20, height: 20,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    addPhotoBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: colors.input,
+      borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+      borderStyle: 'dashed',
+      paddingHorizontal: 14, paddingVertical: 13,
+    },
+    addPhotoBtnText: { fontSize: 15, color: colors.primary, fontFamily: 'Inter_500Medium' },
     serviceToggleRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -334,6 +376,39 @@ export default function AddJobScreen() {
             multiline
             numberOfLines={3}
           />
+        </View>
+
+        {/* Photos */}
+        <View style={s.section}>
+          <Text style={s.label}>Photos (optional)</Text>
+          {photos.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={s.photoScroll}
+              contentContainerStyle={s.photoScrollContent}
+            >
+              {photos.map((uri, i) => (
+                <View key={i} style={s.photoThumbWrap}>
+                  <Image source={{ uri }} style={s.photoThumb} resizeMode="cover" />
+                  <TouchableOpacity
+                    style={s.photoRemoveBtn}
+                    onPress={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                  >
+                    <Feather name="x" size={12} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+          {photos.length < 5 && (
+            <TouchableOpacity style={s.addPhotoBtn} onPress={pickPhoto} activeOpacity={0.7}>
+              <Feather name="camera" size={18} color={colors.primary} />
+              <Text style={s.addPhotoBtnText}>
+                {photos.length === 0 ? 'Add Photos' : 'Add Another'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAwareScrollView>
 

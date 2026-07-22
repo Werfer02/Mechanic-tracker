@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Modal, SafeAreaView } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +25,7 @@ interface Props {
 export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
   const colors = useColors();
   const [confirming, setConfirming] = useState(false);
+  const [viewPhoto, setViewPhoto] = useState<string | null>(null);
 
   const handleDeletePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -74,6 +75,12 @@ export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
     notes: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginTop: 6, lineHeight: 19 },
     dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.mutedForeground },
     badgesRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+    photoRow: { marginTop: 10 },
+    photoRowContent: { gap: 6 },
+    photoThumb: { width: 72, height: 72, borderRadius: 8, backgroundColor: colors.secondary },
+    photoModal: { flex: 1, backgroundColor: '#000' },
+    photoModalClose: { position: 'absolute', top: 16, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 },
+    photoFull: { flex: 1, width: '100%' },
   });
 
   return (
@@ -111,6 +118,20 @@ export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
         </View>
         <Text style={s.desc}>{job.description}</Text>
         {!!job.notes && <Text style={s.notes}>{job.notes}</Text>}
+        {!!job.photos?.length && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.photoRow}
+            contentContainerStyle={s.photoRowContent}
+          >
+            {job.photos.map((uri, i) => (
+              <TouchableOpacity key={i} onPress={() => setViewPhoto(uri)} activeOpacity={0.85}>
+                <Image source={{ uri }} style={s.photoThumb} resizeMode="cover" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       <ConfirmModal
@@ -121,6 +142,17 @@ export default function JobCard({ job, onDelete, showVehicle = true }: Props) {
         onConfirm={handleConfirm}
         onCancel={() => setConfirming(false)}
       />
+
+      <Modal visible={!!viewPhoto} transparent={false} animationType="fade" onRequestClose={() => setViewPhoto(null)}>
+        <SafeAreaView style={s.photoModal}>
+          <TouchableOpacity style={s.photoModalClose} onPress={() => setViewPhoto(null)}>
+            <Feather name="x" size={22} color="#fff" />
+          </TouchableOpacity>
+          {viewPhoto && (
+            <Image source={{ uri: viewPhoto }} style={s.photoFull} resizeMode="contain" />
+          )}
+        </SafeAreaView>
+      </Modal>
     </>
   );
 }
