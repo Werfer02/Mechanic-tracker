@@ -322,31 +322,33 @@ export default function AddJobScreen() {
           )}
         </View>
 
-        {/* Make & Model */}
-        <View style={s.row}>
-          <View style={[s.section, { flex: 1 }]}>
-            <Text style={s.label}>Make (optional)</Text>
-            <TextInput
-              style={s.input}
-              value={make}
-              onChangeText={setMake}
-              placeholder="e.g. Toyota"
-              placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="words"
-            />
+        {/* Make & Model — hidden in edit mode (vehicle details edited separately) */}
+        {!isEditMode && (
+          <View style={s.row}>
+            <View style={[s.section, { flex: 1 }]}>
+              <Text style={s.label}>Make (optional)</Text>
+              <TextInput
+                style={s.input}
+                value={make}
+                onChangeText={setMake}
+                placeholder="e.g. Toyota"
+                placeholderTextColor={colors.mutedForeground}
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={[s.section, { flex: 1 }]}>
+              <Text style={s.label}>Model (optional)</Text>
+              <TextInput
+                style={s.input}
+                value={model}
+                onChangeText={setModel}
+                placeholder="e.g. Hilux"
+                placeholderTextColor={colors.mutedForeground}
+                autoCapitalize="words"
+              />
+            </View>
           </View>
-          <View style={[s.section, { flex: 1 }]}>
-            <Text style={s.label}>Model (optional)</Text>
-            <TextInput
-              style={s.input}
-              value={model}
-              onChangeText={setModel}
-              placeholder="e.g. Hilux"
-              placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="words"
-            />
-          </View>
-        </View>
+        )}
 
         {/* Date & Time */}
         <View style={s.row}>
