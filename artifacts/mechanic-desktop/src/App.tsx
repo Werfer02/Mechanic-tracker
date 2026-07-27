@@ -31,6 +31,7 @@ interface Job {
   notes: string;
   isService: boolean;
   mileageAtService?: number;
+  photoUrls?: string[]; // server-hosted URLs synced from mobile
   createdAt: string;
   _deleted?: boolean;
   _deletedAt?: string;
@@ -1067,9 +1068,82 @@ function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
 
 // ── JobCard ───────────────────────────────────────────────────────────────────
 
-function JobCard({ job, onDelete, onEdit }: { job: Job; onDelete: () => void; onEdit: () => void }) {
+function PhotoStrip({ urls, serverUrl }: { urls: string[]; serverUrl: string }) {
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+
+  /** Resolve a URL that may be relative (/api/photos/x.jpg) against the configured server. */
+  function resolve(url: string): string {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = serverUrl.replace(/\/+$/, '');
+    return `${base}${url}`;
+  }
+
+  return (
+    <>
+      <div className="flex gap-1.5 mt-2 flex-wrap">
+        {urls.map((url, i) => (
+          <button
+            key={i}
+            onClick={() => setLightboxIdx(i)}
+            className="rounded-md overflow-hidden border border-border hover:border-primary/60 transition-colors shrink-0"
+            style={{ width: 56, height: 56 }}
+            title="View photo"
+          >
+            <img
+              src={resolve(url)}
+              alt={`Photo ${i + 1}`}
+              className="w-full h-full object-cover"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          </button>
+        ))}
+      </div>
+
+      {lightboxIdx !== null && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.88)' }}
+          onClick={() => setLightboxIdx(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] p-4" onClick={e => e.stopPropagation()}>
+            <img
+              src={resolve(urls[lightboxIdx])}
+              alt={`Photo ${lightboxIdx + 1}`}
+              className="max-w-full max-h-[80vh] rounded-xl object-contain"
+            />
+            {/* Prev / Next */}
+            {urls.length > 1 && (
+              <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2 pointer-events-none">
+                <button
+                  className="pointer-events-auto p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  onClick={() => setLightboxIdx(i => ((i ?? 0) - 1 + urls.length) % urls.length)}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  className="pointer-events-auto p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  onClick={() => setLightboxIdx(i => ((i ?? 0) + 1) % urls.length)}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            <div className="text-center mt-2 text-xs text-white/60">{lightboxIdx + 1} / {urls.length}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function JobCard({ job, onDelete, onEdit, serverUrl }: { job: Job; onDelete: () => void; onEdit: () => void; serverUrl: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const dateStr = job.date ? fmtDate(job.date) : '—';
+  const hasPhotos = (job.photoUrls?.length ?? 0) > 0;
 
   return (
     <>
@@ -1089,8 +1163,18 @@ function JobCard({ job, onDelete, onEdit }: { job: Job; onDelete: () => void; on
                 Service{job.mileageAtService !== undefined ? ` · ${job.mileageAtService.toLocaleString()} km` : ''}
               </span>
             )}
+            {hasPhotos && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21" />
+                </svg>
+                {job.photoUrls!.length}
+              </span>
+            )}
           </div>
           {job.notes && <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">{job.notes}</p>}
+          {hasPhotos && <PhotoStrip urls={job.photoUrls!} serverUrl={serverUrl} />}
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
           <button
@@ -1440,7 +1524,7 @@ function WorkshopView() {
                   </div>
                 )}
                 {vehicleJobs.map(job => (
-                  <JobCard key={job.id} job={job} onDelete={() => deleteJob(job.id)} onEdit={() => setEditingJob(job)} />
+                  <JobCard key={job.id} job={job} onDelete={() => deleteJob(job.id)} onEdit={() => setEditingJob(job)} serverUrl={serverCfg.serverUrl} />
                 ))}
               </div>
             </>

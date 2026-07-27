@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Platform, Alert, Image,
+  ScrollView, Platform, Alert, Image, ActivityIndicator,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useTracker } from '@/context/TrackerContext';
@@ -13,6 +13,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SERVER_URL_KEY = 'mechanic_server_url';
+
+/** Upload a base64 image to the API server and return its hosted URL, or null on failure. */
+async function uploadPhoto(base64: string, mimeType: string): Promise<string | null> {
+  try {
+    const storedUrl = await AsyncStorage.getItem(SERVER_URL_KEY);
+    const apiBase = storedUrl?.trim() || '';
+    if (!apiBase) return null;
+    const res = await fetch(`${apiBase}/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: base64, mimeType }),
+    });
+    if (!res.ok) return null;
+    const { url } = await res.json() as { url: string };
+    // Resolve relative path against the server base (strip /api suffix for the origin)
+    const origin = apiBase.replace(/\/api\/?$/, '');
+    return `${origin}${url}`;
+  } catch {
+    return null;
+  }
+}
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -54,6 +78,9 @@ export default function AddJobScreen() {
   const [isService, setIsService] = useState(false);
   const [mileageInput, setMileageInput] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  // photoUrls mirrors photos — same index maps to the server URL (or null if upload failed/pending)
+  const [photoUrls, setPhotoUrls] = useState<(string | null)[]>([]);
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -75,6 +102,9 @@ export default function AddJobScreen() {
       setIsService(editJob.isService);
       setMileageInput(editJob.mileageAtService?.toString() ?? '');
       setPhotos(editJob.photos ?? []);
+      // Restore existing server URLs (nulls for any that weren't uploaded)
+      const urls = editJob.photos?.map((_, i) => editJob.photoUrls?.[i] ?? null) ?? [];
+      setPhotoUrls(urls);
     }
   }, [editJob, vehicles]);
 
@@ -136,6 +166,9 @@ export default function AddJobScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     savedRef.current = true; // allow navigation to proceed without discard prompt
 
+    // Collect non-null server URLs to sync to desktop
+    const syncedUrls = photoUrls.filter((u): u is string => u !== null);
+
     if (isEditMode && jobId && editJob) {
       updateJob(jobId, {
         date: toISODate(selectedDate),
@@ -145,8 +178,8 @@ export default function AddJobScreen() {
         isService,
         mileageAtService: mileage,
         photos: photos.length > 0 ? photos : undefined,
+        photoUrls: syncedUrls.length > 0 ? syncedUrls : undefined,
       });
-      // Update vehicle mileage if a service mileage was set/changed
       if (mileage !== undefined) {
         upsertVehicle(editJob.vehicleRegistration, '', '', mileage);
       }
@@ -161,6 +194,7 @@ export default function AddJobScreen() {
         isService,
         ...(mileage !== undefined ? { mileageAtService: mileage } : {}),
         ...(photos.length > 0 ? { photos } : {}),
+        ...(syncedUrls.length > 0 ? { photoUrls: syncedUrls } : {}),
       });
     }
     router.back();
@@ -180,22 +214,25 @@ export default function AddJobScreen() {
     });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      const uri = asset.base64
-        ? `data:image/jpeg;base64,${asset.base64}`
-        : asset.uri;
-      // Warn on oversized photos so mechanics know before sync fails
-      const sizeMb = uri.length / (1024 * 1024);
-      if (sizeMb > 15) {
-        Alert.alert(
-          'Large photo',
-          `This photo is about ${sizeMb.toFixed(1)} MB. It may fail to sync. Use a smaller image or reduce photo quality in your camera settings.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Attach Anyway', onPress: () => setPhotos(prev => [...prev, uri]) },
-          ]
-        );
-      } else {
-        setPhotos(prev => [...prev, uri]);
+      // Use local URI for display; base64 is used for upload only
+      const localUri = asset.uri;
+      const base64 = asset.base64 ?? null;
+
+      // Add the photo locally first so the UI responds immediately
+      const newIdx = photos.length;
+      setPhotos(prev => [...prev, localUri]);
+      setPhotoUrls(prev => [...prev, null]); // placeholder — will be filled after upload
+
+      // Upload in the background if we have base64 data
+      if (base64) {
+        setUploadingIdx(newIdx);
+        const hostedUrl = await uploadPhoto(base64, 'image/jpeg');
+        setPhotoUrls(prev => {
+          const next = [...prev];
+          next[newIdx] = hostedUrl; // null means upload failed — photo stays local-only
+          return next;
+        });
+        setUploadingIdx(null);
       }
     }
   };
@@ -276,6 +313,18 @@ export default function AddJobScreen() {
     photoScrollContent: { gap: 8, paddingRight: 4 },
     photoThumbWrap: { position: 'relative' },
     photoThumb: { width: 80, height: 80, borderRadius: 10, backgroundColor: colors.secondary },
+    photoUploadOverlay: {
+      position: 'absolute', inset: 0,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    photoSyncBadge: {
+      position: 'absolute', bottom: 4, right: 4,
+      backgroundColor: 'rgba(34,197,94,0.85)',
+      borderRadius: 8, width: 18, height: 18,
+      alignItems: 'center', justifyContent: 'center',
+    },
     photoRemoveBtn: {
       position: 'absolute', top: -6, right: -6,
       backgroundColor: '#EF4444',
@@ -489,9 +538,24 @@ export default function AddJobScreen() {
               {photos.map((uri, i) => (
                 <View key={i} style={s.photoThumbWrap}>
                   <Image source={{ uri }} style={s.photoThumb} resizeMode="cover" />
+                  {/* Upload spinner overlay */}
+                  {uploadingIdx === i && (
+                    <View style={s.photoUploadOverlay}>
+                      <ActivityIndicator size="small" color="#fff" />
+                    </View>
+                  )}
+                  {/* Cloud sync indicator — shown when upload succeeded */}
+                  {uploadingIdx !== i && photoUrls[i] && (
+                    <View style={s.photoSyncBadge}>
+                      <Feather name="cloud" size={10} color="#fff" />
+                    </View>
+                  )}
                   <TouchableOpacity
                     style={s.photoRemoveBtn}
-                    onPress={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                    onPress={() => {
+                      setPhotos(prev => prev.filter((_, j) => j !== i));
+                      setPhotoUrls(prev => prev.filter((_, j) => j !== i));
+                    }}
                   >
                     <Feather name="x" size={12} color="#fff" />
                   </TouchableOpacity>

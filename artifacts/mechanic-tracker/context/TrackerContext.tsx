@@ -21,7 +21,8 @@ export interface Job {
   notes: string;
   isService: boolean;
   mileageAtService?: number;
-  photos?: string[];
+  photos?: string[];    // local URIs — mobile only, never synced
+  photoUrls?: string[]; // server-hosted URLs — synced to desktop
   createdAt: string;
   _deleted?: boolean;
   _deletedAt?: string;

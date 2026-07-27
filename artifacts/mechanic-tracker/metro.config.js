@@ -21,6 +21,8 @@ config.resolver.nodeModulesPaths = [
 // trying to watch non-existent android/ios subdirectories inside them.
 config.resolver.blockList = [
   /node_modules\/.*_tmp_\d+\/.*/,
+  // Exclude agent/skill temp directories that may be created and deleted mid-run
+  /\.local\/skills\/\.tmp-.*/,
 ];
 
 module.exports = config;
