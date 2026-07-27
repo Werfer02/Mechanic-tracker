@@ -421,6 +421,16 @@ function Btn({ variant = 'primary', className = '', children, ...props }: React.
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
+const DownloadIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+  </svg>
+);
+const UploadIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5-5 5M12 3v12" />
+  </svg>
+);
 const GearIcon = ({ className = 'w-4 h-4' }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 20 20">
     <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
@@ -1132,6 +1142,50 @@ function WorkshopView() {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [search, setSearch]               = useState('');
   const hasAutoSelected = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pendingImport, setPendingImport] = useState<{ vehicles: any[]; jobs: any[]; version: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const BACKUP_VERSION = 1;
+
+  function handleExport() {
+    const backup = {
+      version: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      app: 'mechanic-tracker',
+      vehicles: store.syncVehicles,
+      jobs: store.syncJobs,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mechanic-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (!data.version || !Array.isArray(data.vehicles) || !Array.isArray(data.jobs)) {
+          alert('This does not appear to be a valid Mechanic Tracker backup file.');
+          return;
+        }
+        setPendingImport({ vehicles: data.vehicles, jobs: data.jobs, version: data.version });
+      } catch {
+        alert('Could not parse the file. Make sure it is a valid JSON backup.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  }
 
   // Auto-select first vehicle when list populates
   useEffect(() => {
@@ -1195,6 +1249,27 @@ function WorkshopView() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Export / Import */}
+          <button
+            onClick={handleExport}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Export backup (.json)">
+            <DownloadIcon />
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Import backup (.json)">
+            <UploadIcon />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+
           {/* Theme toggle */}
           <button
             onClick={theme.toggle}
@@ -1426,6 +1501,20 @@ function WorkshopView() {
             setEditingJob(null);
           }}
           onClose={() => setEditingJob(null)}
+        />
+      )}
+
+      {pendingImport && (
+        <ConfirmModal
+          title="Import backup?"
+          message={`Replace all current data with ${pendingImport.vehicles.filter((v: any) => !v._deleted).length} vehicles and ${pendingImport.jobs.filter((j: any) => !j._deleted).length} jobs from this backup? This cannot be undone.`}
+          confirmLabel="Import"
+          danger
+          onConfirm={() => {
+            store.replaceAll(pendingImport.vehicles, pendingImport.jobs);
+            setPendingImport(null);
+          }}
+          onCancel={() => setPendingImport(null)}
         />
       )}
 

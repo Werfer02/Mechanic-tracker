@@ -16,4 +16,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// Exclude native _tmp_ extraction directories that expo packages unpack
+// at install time but don't always create fully — Metro's watcher crashes
+// trying to watch non-existent android/ios subdirectories inside them.
+config.resolver.blockList = [
+  /node_modules\/.*_tmp_\d+\/.*/,
+];
+
 module.exports = config;

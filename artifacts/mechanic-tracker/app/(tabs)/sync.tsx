@@ -1,16 +1,25 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, Platform, ActivityIndicator, Modal,
+  ScrollView, Platform, ActivityIndicator, Modal, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useColors } from '@/hooks/useColors';
 import { useTracker } from '@/context/TrackerContext';
 import { useSyncRoom } from '@/hooks/useSyncRoom';
 import { APP_VERSION } from '@/constants/version';
+
+// ── Shared backup format ──────────────────────────────────────────────────────
+// version 1: { version, exportedAt, app, vehicles[], jobs[] }
+// Bump `version` only on breaking schema changes. Consumers should preserve
+// unknown fields so data round-trips safely when new fields are added later.
+export const BACKUP_VERSION = 1 as const;
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -269,6 +278,71 @@ export default function SyncScreen() {
     await Clipboard.setStringAsync(code ?? '');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExport = async () => {
+    try {
+      const backup = {
+        version: BACKUP_VERSION,
+        exportedAt: new Date().toISOString(),
+        app: 'mechanic-tracker',
+        vehicles: syncVehicles,
+        jobs: syncJobs,
+      };
+      const json = JSON.stringify(backup, null, 2);
+      const date = new Date().toISOString().slice(0, 10);
+      // cacheDirectory / documentDirectory are runtime constants not typed in v57
+      const FS = FileSystem as any;
+      const cacheDir: string = FS.cacheDirectory ?? FS.documentDirectory ?? '';
+      const uri = `${cacheDir}mechanic-backup-${date}.json`;
+      await FS.writeAsStringAsync(uri, json, { encoding: FS.EncodingType.UTF8 });
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Save your backup file',
+        UTI: 'public.json',
+      });
+    } catch {
+      Alert.alert('Export failed', 'Could not create the backup file.');
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/plain', '*/*'],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const file = result.assets[0];
+      const text = await (FileSystem as any).readAsStringAsync(file.uri, { encoding: (FileSystem as any).EncodingType?.UTF8 ?? 'utf8' });
+      const data = JSON.parse(text);
+      if (!data.version || !Array.isArray(data.vehicles) || !Array.isArray(data.jobs)) {
+        Alert.alert('Invalid file', 'This does not appear to be a valid Mechanic Tracker backup.');
+        return;
+      }
+      if (data.version > BACKUP_VERSION) {
+        Alert.alert(
+          'Newer format',
+          `This backup was made with a newer version of the app (format v${data.version}). Some data may not be fully supported.`
+        );
+      }
+      Alert.alert(
+        'Import backup?',
+        `Replace all current data with ${data.vehicles.filter((v: any) => !v._deleted).length} vehicles and ${data.jobs.filter((j: any) => !j._deleted).length} jobs from this backup?\n\nThis cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import', style: 'destructive',
+            onPress: async () => {
+              await replaceData(data.vehicles, data.jobs);
+              Alert.alert('Done', 'Backup imported successfully.');
+            },
+          },
+        ]
+      );
+    } catch {
+      Alert.alert('Import failed', 'Could not read the file. Make sure it is a valid JSON backup.');
+    }
   };
 
   function handleScanned(rawQrData: string) {
@@ -558,6 +632,31 @@ export default function SyncScreen() {
             </View>
           </>
         )}
+        {/* ── Backup: export / import ── */}
+        <View style={[s.card, { marginTop: 8 }]}>
+          <Text style={[s.statLabel, { fontSize: 12, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 }]}>
+            Backup &amp; Restore
+          </Text>
+          <TouchableOpacity
+            style={[s.syncBtn, { marginBottom: 10 }]}
+            onPress={handleExport}
+          >
+            <Feather name="download" size={16} color={colors.primaryForeground} />
+            <Text style={s.syncBtnText}>Export Backup</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.syncBtn, { backgroundColor: colors.secondary }]}
+            onPress={handleImport}
+          >
+            <Feather name="upload" size={16} color={colors.foreground} />
+            <Text style={[s.syncBtnText, { color: colors.foreground }]}>Import Backup</Text>
+          </TouchableOpacity>
+          <Text style={[s.lastSyncedText, { marginTop: 10, textAlign: 'left', lineHeight: 18 }]}>
+            Export saves all data to a .json file you can share or store anywhere.{'\n'}
+            Import replaces all current data — backup first!
+          </Text>
+        </View>
+
         {/* ── Server URL config ── */}
         <View style={[s.card, { marginTop: 8 }]}>
           <Text style={[s.statLabel, { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 }]}>
