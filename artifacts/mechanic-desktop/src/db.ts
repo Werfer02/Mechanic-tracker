@@ -1,44 +1,29 @@
-import { openDB } from 'idb';
-import type { DBSchema, IDBPDatabase } from 'idb';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRecord = Record<string, any>;
+const API_BASE = '/api';
 
-interface MechanicDB extends DBSchema {
-  vehicles: { key: string; value: AnyRecord };
-  jobs:     { key: string; value: AnyRecord };
+export async function loadVehicles() {
+  const res = await fetch(`${API_BASE}/desktop-data`);
+  if (!res.ok) throw new Error(`Failed to load vehicles: ${res.status}`);
+  const data = await res.json() as { vehicles: unknown[]; jobs: unknown[] };
+  return data.vehicles;
 }
-
-let _db: IDBPDatabase<MechanicDB> | null = null;
-
-async function getDb() {
-  if (!_db) {
-    _db = await openDB<MechanicDB>('mechanic-desktop', 1, {
-      upgrade(db) {
-        db.createObjectStore('vehicles', { keyPath: 'id' });
-        db.createObjectStore('jobs',     { keyPath: 'id' });
-      },
-    });
-  }
-  return _db;
+export async function loadJobs() {
+  const res = await fetch(`${API_BASE}/desktop-data`);
+  if (!res.ok) throw new Error(`Failed to load jobs: ${res.status}`);
+  const data = await res.json() as { vehicles: unknown[]; jobs: unknown[] };
+  return data.jobs;
+}
+export async function saveVehicles(vehicles: unknown[]) {
+  await saveData(vehicles, await loadJobs());
+}
+export async function saveJobs(jobs: unknown[]) {
+  await saveData(await loadVehicles(), jobs);
 }
 
-export async function loadVehicles(): Promise<AnyRecord[]> {
-  return (await getDb()).getAll('vehicles');
-}
-export async function loadJobs(): Promise<AnyRecord[]> {
-  return (await getDb()).getAll('jobs');
-}
-export async function saveVehicles(vehicles: AnyRecord[]): Promise<void> {
-  const db = await getDb();
-  const tx = db.transaction('vehicles', 'readwrite');
-  await tx.store.clear();
-  await Promise.all(vehicles.map(v => tx.store.put(v)));
-  await tx.done;
-}
-export async function saveJobs(jobs: AnyRecord[]): Promise<void> {
-  const db = await getDb();
-  const tx = db.transaction('jobs', 'readwrite');
-  await tx.store.clear();
-  await Promise.all(jobs.map(j => tx.store.put(j)));
-  await tx.done;
+async function saveData(vehicles: unknown[], jobs: unknown[]) {
+  const res = await fetch(`${API_BASE}/desktop-data`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ vehicles, jobs }),
+  });
+  if (!res.ok) throw new Error(`Failed to save data: ${res.status}`);
 }
