@@ -1,8 +1,12 @@
-import { Router } from "express";
+import { Router, json } from "express";
 import { promises as fs } from "fs";
 import path from "path";
 
 const router = Router();
+
+// Photos can be several MB each — override the default 100 kb body-parser limit
+// just for these two routes so the rest of the API stays tight.
+const largeJson = json({ limit: "25mb" });
 const PHOTOS_DIR = path.resolve(process.cwd(), "data/photos");
 
 /**
@@ -13,7 +17,7 @@ const PHOTOS_DIR = path.resolve(process.cwd(), "data/photos");
  * Stores the image on disk and returns a stable path the client can use
  * to retrieve it later. Photos are immutable once written.
  */
-router.post("/photos", async (req, res) => {
+router.post("/photos", largeJson, async (req, res) => {
   const { data, mimeType } = req.body as { data?: string; mimeType?: string };
   if (!data) {
     res.status(400).json({ error: "Missing data field (base64 image)" });
