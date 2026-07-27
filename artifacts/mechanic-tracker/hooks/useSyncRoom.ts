@@ -167,7 +167,7 @@ export function useSyncRoom() {
       for (const j of localJobsToPush) jobMap.set(j.id, j);
       const mergedJobs = purgeOldTombstones(Array.from(jobMap.values()));
 
-      // 3. Push merged
+      // 3. Push merged (photos already stripped in localJobsToPush — server stays lean)
       const pushRes = await fetch(`${apiBase()}/sync/rooms/${activeCode}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -175,11 +175,19 @@ export function useSyncRoom() {
       });
       if (!pushRes.ok) throw new Error('Push failed');
 
+      // 4. Re-attach local photos to the result before handing back to the caller.
+      //    We stripped photos for the wire payload but the local device must keep them.
+      const localPhotosById = new Map(localJobs.map(j => [j.id, j.photos]));
+      const mergedJobsWithPhotos = mergedJobs.map(j => {
+        const localPhotos = localPhotosById.get(j.id);
+        return localPhotos && localPhotos.length > 0 ? { ...j, photos: localPhotos } : j;
+      });
+
       const now = new Date().toISOString();
       await AsyncStorage.setItem(LAST_SYNCED_KEY, now);
       setLastSynced(now);
       setStatus('ok');
-      return { vehicles: mergedVehicles, jobs: mergedJobs };
+      return { vehicles: mergedVehicles, jobs: mergedJobsWithPhotos };
     } catch {
       setStatus('error');
       setErrorMsg('Sync failed. Check your server URL and connection.');
