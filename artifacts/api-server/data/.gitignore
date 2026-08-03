@@ -1,0 +1,8 @@
+# Ignore all runtime data — photos, sync rooms, and the desktop database.
+# These contain real user data and must never be committed.
+*
+
+# Keep the directory structure so the server can write files on first run.
+!.gitignore
+!photos/.gitkeep
+!sync-rooms/.gitkeep
