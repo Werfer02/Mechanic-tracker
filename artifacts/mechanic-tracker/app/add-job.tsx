@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { enqueuePhotos } from '@/utils/photoUploadQueue';
 
 const SERVER_URL_KEY = 'mechanic_server_url';
 
@@ -80,6 +81,8 @@ export default function AddJobScreen() {
   const [photos, setPhotos] = useState<string[]>([]);
   // photoUrls mirrors photos — same index maps to the server URL (or null if upload failed/pending)
   const [photoUrls, setPhotoUrls] = useState<(string | null)[]>([]);
+  // photoBase64s mirrors photos — base64 kept in memory for queue fallback at save time
+  const [photoBase64s, setPhotoBase64s] = useState<(string | null)[]>([]);
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -164,7 +167,7 @@ export default function AddJobScreen() {
     }
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    savedRef.current = true; // allow navigation to proceed without discard prompt
+    savedRef.current = true;
 
     // Collect non-null server URLs to sync to desktop
     const syncedUrls = photoUrls.filter((u): u is string => u !== null);
@@ -177,15 +180,22 @@ export default function AddJobScreen() {
         notes: notes.trim(),
         isService,
         mileageAtService: mileage,
-        photos: photos.length > 0 ? photos : undefined,
+        photos:    photos.length    > 0 ? photos    : undefined,
         photoUrls: syncedUrls.length > 0 ? syncedUrls : undefined,
       });
       if (mileage !== undefined) {
         upsertVehicle(editJob.vehicleRegistration, '', '', mileage);
       }
+      // Queue any photos whose upload failed so sync can retry them
+      enqueuePhotos(
+        photos
+          .map((uri, i) => ({ uri, base64: photoBase64s[i] ?? null, url: photoUrls[i] }))
+          .filter((p): p is { uri: string; base64: string; url: null } => !p.url && !!p.base64)
+          .map(p => ({ jobId, uri: p.uri, base64: p.base64, mimeType: 'image/jpeg' }))
+      );
     } else {
       upsertVehicle(regUpper, make.trim(), model.trim(), mileage);
-      addJob({
+      const newJob = addJob({
         vehicleRegistration: regUpper,
         date: toISODate(selectedDate),
         time: selectedTime,
@@ -193,9 +203,16 @@ export default function AddJobScreen() {
         notes: notes.trim(),
         isService,
         ...(mileage !== undefined ? { mileageAtService: mileage } : {}),
-        ...(photos.length > 0 ? { photos } : {}),
+        ...(photos.length    > 0 ? { photos }      : {}),
         ...(syncedUrls.length > 0 ? { photoUrls: syncedUrls } : {}),
       });
+      // Queue any photos whose upload failed so sync can retry them
+      enqueuePhotos(
+        photos
+          .map((uri, i) => ({ uri, base64: photoBase64s[i] ?? null, url: photoUrls[i] }))
+          .filter((p): p is { uri: string; base64: string; url: null } => !p.url && !!p.base64)
+          .map(p => ({ jobId: newJob.id, uri: p.uri, base64: p.base64, mimeType: 'image/jpeg' }))
+      );
     }
     router.back();
   };
@@ -208,28 +225,31 @@ export default function AddJobScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.6,
+      // quality 0.5 halves the JPEG payload vs the old 0.6 setting, keeping
+      // the base64 body well within reverse-proxy size limits.
+      quality: 0.5,
       base64: true,
       allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      // Use local URI for display; base64 is used for upload only
+      const asset  = result.assets[0];
       const localUri = asset.uri;
-      const base64 = asset.base64 ?? null;
+      const base64   = asset.base64 ?? null;
 
       // Add the photo locally first so the UI responds immediately
       const newIdx = photos.length;
       setPhotos(prev => [...prev, localUri]);
-      setPhotoUrls(prev => [...prev, null]); // placeholder — will be filled after upload
+      setPhotoUrls(prev => [...prev, null]);
+      setPhotoBase64s(prev => [...prev, base64]);
 
-      // Upload in the background if we have base64 data
+      // Attempt immediate upload if we have base64 — succeeds when the server
+      // URL is already configured, silently stays null otherwise (queued at save).
       if (base64) {
         setUploadingIdx(newIdx);
         const hostedUrl = await uploadPhoto(base64, 'image/jpeg');
         setPhotoUrls(prev => {
           const next = [...prev];
-          next[newIdx] = hostedUrl; // null means upload failed — photo stays local-only
+          next[newIdx] = hostedUrl;
           return next;
         });
         setUploadingIdx(null);

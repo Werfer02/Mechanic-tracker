@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import { getQueue, dequeuePhotos } from '@/utils/photoUploadQueue';
 import type { Vehicle, Job } from '@/context/TrackerContext';
 
 const TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -18,7 +18,6 @@ const SYNC_CODE_KEY   = 'mechanic_sync_code';
 const LAST_SYNCED_KEY = 'mechanic_last_synced';
 const SERVER_URL_KEY  = 'mechanic_server_url';
 
-/** Returns the compile-time default from the env var, or empty string if none set. */
 function getDefaultApiBase(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (!domain) return '';
@@ -28,16 +27,14 @@ function getDefaultApiBase(): string {
 export type SyncStatus = 'idle' | 'syncing' | 'ok' | 'error';
 
 export function useSyncRoom() {
-  const [code,       setCode]           = useState<string | null>(null);
-  const [status,     setStatus]         = useState<SyncStatus>('idle');
-  const [lastSynced, setLastSynced]     = useState<string | null>(null);
-  const [errorMsg,   setErrorMsg]       = useState<string | null>(null);
+  const [code,       setCode]       = useState<string | null>(null);
+  const [status,     setStatus]     = useState<SyncStatus>('idle');
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [errorMsg,   setErrorMsg]   = useState<string | null>(null);
   const [serverUrl,  setServerUrlState] = useState<string>('');
 
-  // Ref so callbacks always see the latest URL without needing to be recreated.
   const serverUrlRef = useRef<string>('');
 
-  // Load all persisted values on mount.
   useEffect(() => {
     (async () => {
       const [storedCode, storedSynced, storedUrl] = await Promise.all([
@@ -47,32 +44,19 @@ export function useSyncRoom() {
       ]);
       if (storedCode)   setCode(storedCode);
       if (storedSynced) setLastSynced(storedSynced);
-
-      // storedUrl is null when the user has never saved one — fall back to
-      // the value baked in at build time (EXPO_PUBLIC_DOMAIN), which may
-      // itself be empty if the APK was built without it.
       const url = storedUrl !== null ? storedUrl : getDefaultApiBase();
       setServerUrlState(url);
       serverUrlRef.current = url;
     })();
   }, []);
 
-  /** Persist a new server URL and update the ref immediately so in-flight
-   *  callbacks pick it up without waiting for a re-render. */
   const setServerUrl = useCallback(async (url: string) => {
     const trimmed = url.trim();
-    // Update the ref and state synchronously so any in-flight or immediately
-    // scheduled API calls (e.g. joinRoom 300 ms after a QR scan) see the new
-    // URL without having to await this function.
     serverUrlRef.current = trimmed;
     setServerUrlState(trimmed);
-    // Persist in the background — no need to block callers on this.
     await AsyncStorage.setItem(SERVER_URL_KEY, trimmed);
   }, []);
 
-  // ── API helpers ─────────────────────────────────────────────────────────────
-
-  /** Current base for all sync API calls — reads the ref, always fresh. */
   const apiBase = () => serverUrlRef.current || '/api';
 
   // ── Room actions ─────────────────────────────────────────────────────────────
@@ -110,7 +94,7 @@ export function useSyncRoom() {
       await AsyncStorage.setItem(SYNC_CODE_KEY, upper);
       setCode(upper);
       setStatus('ok');
-      return upper; // return the code so callers can immediately pass it to sync()
+      return upper;
     } catch {
       setStatus('error');
       setErrorMsg('Could not connect. Check your server URL and connection.');
@@ -129,32 +113,20 @@ export function useSyncRoom() {
     setErrorMsg(null);
   }, []);
 
-  /**
-   * Upload a single photo URI to the server with a per-photo timeout.
-   * Returns a hosted URL or null — never throws.
-   */
-  const uploadOnePhoto = useCallback(async (uri: string): Promise<string | null> => {
+  // ── Upload a single photo from base64 (no file-system reads) ─────────────────
+
+  const uploadOnePhoto = useCallback(async (base64: string, mimeType: string): Promise<string | null> => {
     const base = serverUrlRef.current;
     if (!base) return null;
     try {
-      // Race the file read against a 10 s timeout so a slow/unreadable URI
-      // never hangs the caller.
-      const b64 = await Promise.race<string>([
-        FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('read timeout')), 10_000)
-        ),
-      ]);
-      const ext      = uri.split('.').pop()?.toLowerCase() ?? '';
-      const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       const res = await fetch(`${base}/photos`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ data: b64, mimeType }),
+        body:    JSON.stringify({ data: base64, mimeType }),
       });
       if (!res.ok) return null;
       const { url } = await res.json() as { url: string };
-      const origin   = base.replace(/\/api\/?$/, '');
+      const origin = base.replace(/\/api\/?$/, '');
       return `${origin}${url}`;
     } catch {
       return null;
@@ -162,58 +134,69 @@ export function useSyncRoom() {
   }, []);
 
   /**
-   * After a successful sync, fire-and-forget: upload photos that haven't
-   * reached the server yet, then push a second time so desktop sees the URLs.
-   * Runs entirely in the background — never blocks or delays the sync result.
+   * Fire-and-forget after a successful sync push.
+   * Reads the persistent upload queue (base64 stored at pick-time),
+   * uploads any pending photos, patches the sync room with the new URLs.
+   * Never throws — worst case the photos stay queued for the next cycle.
    */
-  const uploadPendingPhotos = useCallback(async (
-    activeCode: string,
-    jobs: Job[],
-  ): Promise<void> => {
-    const needsUpload = jobs.filter(j =>
-      !j._deleted && (j.photos?.length ?? 0) > (j.photoUrls?.length ?? 0)
-    );
-    if (needsUpload.length === 0) return;
+  const drainUploadQueue = useCallback(async (activeCode: string): Promise<void> => {
+    const queue = await getQueue();
+    if (queue.length === 0) return;
 
-    let anyUploaded = false;
-    const updated = await Promise.all(
-      needsUpload.map(async (job) => {
-        const photos    = job.photos    ?? [];
-        const photoUrls = [...(job.photoUrls ?? [])];
-        let changed = false;
-        await Promise.all(
-          photos.map(async (uri, i) => {
-            if (photoUrls[i]) return;
-            const url = await uploadOnePhoto(uri);
-            if (url) { photoUrls[i] = url; changed = true; anyUploaded = true; }
-          })
-        );
-        return changed ? { ...job, photoUrls: photoUrls.filter(Boolean) as string[] } : null;
+    const succeeded: Array<{ jobId: string; uri: string; hostedUrl: string }> = [];
+    await Promise.all(
+      queue.map(async entry => {
+        const hostedUrl = await uploadOnePhoto(entry.base64, entry.mimeType);
+        if (hostedUrl) succeeded.push({ jobId: entry.jobId, uri: entry.uri, hostedUrl });
       })
     );
-    if (!anyUploaded) return;
 
-    // Build a fresh job map: start from current room state, overlay the updated jobs.
+    if (succeeded.length === 0) return;
+
+    // Remove successfully-uploaded entries from the queue
+    await dequeuePhotos(succeeded);
+
+    // Pull current room, patch jobs with new photo URLs, push back
     try {
       const pullRes = await fetch(`${apiBase()}/sync/rooms/${activeCode}`);
       if (!pullRes.ok) return;
       const room = await pullRes.json() as { vehicles: Vehicle[]; jobs: Job[] };
-      const jobMap = new Map<string, Job>(room.jobs.map(j => [j.id, j]));
-      for (const u of updated) {
-        if (u) jobMap.set(u.id, { ...jobMap.get(u.id)!, ...u, photos: undefined });
+
+      // Group results by jobId
+      const byJob = new Map<string, Array<{ uri: string; hostedUrl: string }>>();
+      for (const s of succeeded) {
+        const list = byJob.get(s.jobId) ?? [];
+        list.push({ uri: s.uri, hostedUrl: s.hostedUrl });
+        byJob.set(s.jobId, list);
       }
+
+      const patchedJobs = room.jobs.map(j => {
+        const patches = byJob.get(j.id);
+        if (!patches) return j;
+        // For each URI that now has a URL, append to photoUrls if not already present
+        const existing = j.photoUrls ?? [];
+        const newUrls  = [...existing];
+        let changed = false;
+        for (const { hostedUrl } of patches) {
+          if (!newUrls.includes(hostedUrl)) { newUrls.push(hostedUrl); changed = true; }
+        }
+        return changed ? { ...j, photoUrls: newUrls } : j;
+      });
+
       await fetch(`${apiBase()}/sync/rooms/${activeCode}`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ vehicles: room.vehicles, jobs: Array.from(jobMap.values()) }),
+        body:    JSON.stringify({ vehicles: room.vehicles, jobs: patchedJobs }),
       });
     } catch { /* best-effort — next sync will retry */ }
   }, [uploadOnePhoto]);
 
+  // ── Core sync ─────────────────────────────────────────────────────────────────
+
   /**
    * Merge-sync: pull remote → union with local → push merged result back.
    * Returns the merged data so the caller can persist it locally.
-   * Photo uploads run in the background after the push so they never block sync.
+   * Photo uploads drain from the queue in the background after the push.
    */
   const sync = useCallback(async (
     localVehicles: Vehicle[],
@@ -225,7 +208,7 @@ export function useSyncRoom() {
     setStatus('syncing');
     setErrorMsg(null);
     try {
-      // Strip photos (base64) before pushing — photos are local-only.
+      // Strip local-only photos (base64 URIs) before pushing — server-side is lean
       const localJobsToPush = localJobs.map(({ photos: _p, ...j }) => j as Job);
 
       // 1. Pull
@@ -238,18 +221,22 @@ export function useSyncRoom() {
       if (!pullRes.ok) throw new Error('Pull failed');
       const remote = await pullRes.json() as { vehicles: Vehicle[]; jobs: Job[] };
 
-      // 2. Merge (union by id, local wins on conflict) then purge expired tombstones
+      // 2. Merge — remote first so local fields win; remote-only fields (photoUrls) survive
       const vehicleMap = new Map<string, Vehicle>();
       for (const v of remote.vehicles) vehicleMap.set(v.id, v);
       for (const v of localVehicles)   vehicleMap.set(v.id, v);
-      const mergedVehicles = purgeOldTombstones(Array.from(vehicleMap.values()));
+      const mergedVehicles = purgeOldTombstones([...vehicleMap.values()]);
 
       const jobMap = new Map<string, Job>();
-      for (const j of remote.jobs)        jobMap.set(j.id, j);
-      for (const j of localJobsToPush)    jobMap.set(j.id, j);
-      const mergedJobs = purgeOldTombstones(Array.from(jobMap.values()));
+      for (const j of remote.jobs)     jobMap.set(j.id, j);
+      for (const j of localJobsToPush) {
+        const existing = jobMap.get(j.id);
+        // Keep remote-only fields (e.g. photoUrls set by a prior background upload)
+        jobMap.set(j.id, existing ? { ...existing, ...j } : j);
+      }
+      const mergedJobs = purgeOldTombstones([...jobMap.values()]);
 
-      // 3. Push — always completes fast; photo uploads happen afterwards
+      // 3. Push
       const pushRes = await fetch(`${apiBase()}/sync/rooms/${activeCode}`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -257,16 +244,12 @@ export function useSyncRoom() {
       });
       if (!pushRes.ok) throw new Error('Push failed');
 
-      // 4. Re-attach local photos so the mobile device keeps its originals
+      // 4. Re-attach local photo URIs so the mobile device keeps its previews
       const localJobsById = new Map(localJobs.map(j => [j.id, j]));
       const mergedJobsWithPhotos = mergedJobs.map(j => {
         const local = localJobsById.get(j.id);
-        if (!local) return j;
-        return {
-          ...j,
-          ...(local.photos    && local.photos.length    > 0 ? { photos:    local.photos    } : {}),
-          ...(local.photoUrls && local.photoUrls.length > 0 ? { photoUrls: local.photoUrls } : {}),
-        };
+        if (!local?.photos?.length) return j;
+        return { ...j, photos: local.photos };
       });
 
       const now = new Date().toISOString();
@@ -274,9 +257,8 @@ export function useSyncRoom() {
       setLastSynced(now);
       setStatus('ok');
 
-      // 5. Background: upload any photos not yet on the server, then push again.
-      //    This fires after we return so it never delays or breaks the sync.
-      uploadPendingPhotos(activeCode, mergedJobsWithPhotos);
+      // 5. Background: drain upload queue — uploads photos, then does a second push
+      drainUploadQueue(activeCode);
 
       return { vehicles: mergedVehicles, jobs: mergedJobsWithPhotos };
     } catch {
@@ -284,7 +266,7 @@ export function useSyncRoom() {
       setErrorMsg('Sync failed. Check your server URL and connection.');
       return null;
     }
-  }, [code, uploadPendingPhotos]);
+  }, [code, drainUploadQueue]);
 
   return {
     code, status, lastSynced, errorMsg,
