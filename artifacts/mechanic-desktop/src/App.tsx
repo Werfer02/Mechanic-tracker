@@ -84,7 +84,12 @@ function makeQrData(code: string, serverUrl: string): string {
 function mergeById<T extends { id: string }>(remote: T[], local: T[]): T[] {
   const map = new Map<string, T>();
   for (const item of remote) map.set(item.id, item);
-  for (const item of local)  map.set(item.id, item); // local wins same-id
+  for (const item of local) {
+    const existing = map.get(item.id);
+    // Spread remote as base so remote-only fields (e.g. photoUrls) survive,
+    // then spread local on top so local fields still win on conflict.
+    map.set(item.id, existing ? { ...existing, ...item } : item);
+  }
   return Array.from(map.values());
 }
 
