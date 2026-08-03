@@ -5,20 +5,20 @@
       "make": "Nsme",
       "model": "Ndnd",
       "mileage": 313136,
-      "_deleted": true,
       "createdAt": "2026-08-03T21:51:56.038Z",
-      "_deletedAt": "2026-08-03T22:15:08.271Z",
-      "registration": "SNNSNSN"
+      "registration": "SNNSNSN",
+      "_deleted": true,
+      "_deletedAt": "2026-08-03T22:15:08.271Z"
     },
     {
       "id": "1785782168032fchbqm1l6",
       "make": "Snsjj",
       "model": "Jsjsj",
       "mileage": 200000,
-      "_deleted": true,
       "createdAt": "2026-08-03T18:36:08.032Z",
-      "_deletedAt": "2026-08-03T22:15:11.024Z",
-      "registration": "BANZNSJ"
+      "registration": "BANZNSJ",
+      "_deleted": true,
+      "_deletedAt": "2026-08-03T22:15:11.024Z"
     },
     {
       "id": "1785795365774hcmttxr4w",
@@ -90,6 +90,9 @@
       "notes": "",
       "createdAt": "2026-08-03T22:16:05.775Z",
       "isService": true,
+      "photoUrls": [
+        "https://b47668a0-a2f3-4e44-b48c-6a779993d30f-00-1agvsw7gbzqqy.picard.replit.dev/api/photos/1785795565563-pvmwwgj.jpg"
+      ],
       "description": "Shhsh",
       "mileageAtService": 494940,
       "vehicleRegistration": "SHHSH"
