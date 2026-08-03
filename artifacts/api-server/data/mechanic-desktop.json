@@ -1,1 +1,16 @@
-{"vehicles":[],"jobs":[]}
+{
+  "vehicles": [],
+  "jobs": [
+    {
+      "id": "1785782168033bvee3mi79",
+      "date": "2026-08-03",
+      "time": "19:35",
+      "notes": "Jsjs",
+      "createdAt": "2026-08-03T18:36:08.033Z",
+      "isService": true,
+      "description": "Snnsns",
+      "mileageAtService": 200000,
+      "vehicleRegistration": "BANZNSJ"
+    }
+  ]
+}
