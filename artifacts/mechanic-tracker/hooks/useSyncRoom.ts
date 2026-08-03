@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import type { Vehicle, Job } from '@/context/TrackerContext';
 
 const TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -128,15 +129,25 @@ export function useSyncRoom() {
     setErrorMsg(null);
   }, []);
 
-  /** Upload a single base64 photo to the server; returns a full URL or null on failure. */
-  const uploadOnePhoto = useCallback(async (base64: string, mimeType = 'image/jpeg'): Promise<string | null> => {
+  /**
+   * Upload a single photo (given as a local URI) to the server.
+   * Reads the file as base64 first, then POSTs it. Returns a full URL or null.
+   */
+  const uploadOnePhoto = useCallback(async (uri: string): Promise<string | null> => {
     const base = serverUrlRef.current;
     if (!base) return null;
     try {
+      // Read the local file as base64 — expo-file-system handles file:// and content:// URIs.
+      const b64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      // Guess mime type from extension; default to jpeg.
+      const ext = uri.split('.').pop()?.toLowerCase() ?? '';
+      const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       const res = await fetch(`${base}/photos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: base64, mimeType }),
+        body: JSON.stringify({ data: b64, mimeType }),
       });
       if (!res.ok) return null;
       const { url } = await res.json() as { url: string };
