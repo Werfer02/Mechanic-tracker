@@ -28,6 +28,9 @@ services:
         condition: service_healthy
     ports:
       - "${API_PORT:-3001}:3001"
+    volumes:
+      # Persist uploaded photos and the desktop database across container restarts
+      - api-data:/app/artifacts/api-server/data
     command: ["sh", "-c", "pnpm --filter @workspace/db run push && node --enable-source-maps artifacts/api-server/dist/index.mjs"]
     restart: unless-stopped
 
@@ -43,3 +46,4 @@ services:
 
 volumes:
   postgres-data:
+  api-data:
