@@ -107,36 +107,39 @@ function purgeOldTombstones<T extends { _deleted?: boolean; _deletedAt?: string 
 
 // ── useDesktopStore ───────────────────────────────────────────────────────────
 // Persistent local store — uses IndexedDB (via idb) for vehicles/jobs.
-import { loadVehicles, loadJobs, saveVehicles, saveJobs } from './db';
+import { loadAll, saveAll } from './db';
 
 function useDesktopStore() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [jobs,     setJobs]     = useState<Job[]>([]);
 
-  // Load from IndexedDB on mount; migrate any existing localStorage data once.
+  // Load on mount; migrate any existing localStorage data once.
   useEffect(() => {
     (async () => {
       try {
-        let v = await loadVehicles() as Vehicle[];
-        let j = await loadJobs() as Job[];
+        const loaded = await loadAll();
+        let v = loaded.vehicles as Vehicle[];
+        let j = loaded.jobs as Job[];
         // One-time migration from localStorage
-        if (v.length === 0) {
-          const lsV = localStorage.getItem(LS_VEHICLES);
-          if (lsV) { v = JSON.parse(lsV); await saveVehicles(v); localStorage.removeItem(LS_VEHICLES); }
-        }
-        if (j.length === 0) {
-          const lsJ = localStorage.getItem(LS_JOBS);
-          if (lsJ) { j = JSON.parse(lsJ); await saveJobs(j); localStorage.removeItem(LS_JOBS); }
-        }
+        const lsV = localStorage.getItem(LS_VEHICLES);
+        const lsJ = localStorage.getItem(LS_JOBS);
+        if (v.length === 0 && lsV) { v = JSON.parse(lsV); localStorage.removeItem(LS_VEHICLES); }
+        if (j.length === 0 && lsJ) { j = JSON.parse(lsJ); localStorage.removeItem(LS_JOBS); }
+        if ((lsV && v.length) || (lsJ && j.length)) await saveAll(v, j);
         setVehicles(v);
         setJobs(j);
       } catch { /* ignore */ }
     })();
   }, []);
 
-  // Persist to IndexedDB whenever state changes (fire-and-forget).
-  useEffect(() => { saveVehicles(vehicles).catch(() => {}); }, [vehicles]);
-  useEffect(() => { saveJobs(jobs).catch(() => {}); }, [jobs]);
+  // Persist whenever either vehicles or jobs changes — single call, no read-then-write race.
+  // We track a "ready" flag so we don't overwrite server data before the initial load finishes.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []); // flips after first render completes
+  useEffect(() => {
+    if (!ready) return;
+    saveAll(vehicles, jobs).catch(() => {});
+  }, [vehicles, jobs, ready]);
 
   /** Upsert a vehicle by registration. Make/model are optional. Un-deletes if previously deleted. */
   const upsertVehicle = useCallback((reg: string, make = '', model = '', mileage?: number): Vehicle => {

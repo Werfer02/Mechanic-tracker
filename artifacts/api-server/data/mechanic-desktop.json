@@ -1,5 +1,14 @@
 {
-  "vehicles": [],
+  "vehicles": [
+    {
+      "id": "1785782168032fchbqm1l6",
+      "make": "Snsjj",
+      "model": "Jsjsj",
+      "mileage": 200000,
+      "createdAt": "2026-08-03T18:36:08.032Z",
+      "registration": "BANZNSJ"
+    }
+  ],
   "jobs": [
     {
       "id": "1785782168033bvee3mi79",

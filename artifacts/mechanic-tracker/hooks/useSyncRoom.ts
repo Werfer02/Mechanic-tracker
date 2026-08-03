@@ -128,6 +128,25 @@ export function useSyncRoom() {
     setErrorMsg(null);
   }, []);
 
+  /** Upload a single base64 photo to the server; returns a full URL or null on failure. */
+  const uploadOnePhoto = useCallback(async (base64: string, mimeType = 'image/jpeg'): Promise<string | null> => {
+    const base = serverUrlRef.current;
+    if (!base) return null;
+    try {
+      const res = await fetch(`${base}/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: base64, mimeType }),
+      });
+      if (!res.ok) return null;
+      const { url } = await res.json() as { url: string };
+      const origin = base.replace(/\/api\/?$/, '');
+      return `${origin}${url}`;
+    } catch {
+      return null;
+    }
+  }, []);
+
   /**
    * Merge-sync: pull remote → union with local → push merged result back.
    * Returns the merged data so the caller can persist it locally.
@@ -142,9 +161,33 @@ export function useSyncRoom() {
     setStatus('syncing');
     setErrorMsg(null);
     try {
-      // Strip photos from every job before pushing — base64 images bloat the
-      // sync payload to many MB and cause 413 errors. Photos are mobile-only.
-      const localJobsToPush = localJobs.map(({ photos: _p, ...j }) => j as Job);
+      // Before building the push payload, upload any photos that are stored
+      // locally (base64) but never made it to the server (photoUrls missing or
+      // shorter than the photos array). This handles jobs created before the
+      // server URL was configured, or where the upload failed silently.
+      const jobsWithUrls: Job[] = await Promise.all(
+        localJobs.map(async (job) => {
+          const photos    = job.photos    ?? [];
+          const photoUrls = job.photoUrls ?? [];
+          if (photos.length === 0) return job;
+
+          // Upload photos that don't yet have a server URL.
+          let changed = false;
+          const updatedUrls = [...photoUrls];
+          await Promise.all(
+            photos.map(async (b64, i) => {
+              if (updatedUrls[i]) return; // already uploaded
+              const url = await uploadOnePhoto(b64);
+              if (url) { updatedUrls[i] = url; changed = true; }
+            })
+          );
+          if (!changed) return job;
+          return { ...job, photoUrls: updatedUrls.filter(Boolean) as string[] };
+        })
+      );
+
+      // Strip photos (base64) before pushing — keep only photoUrls on the wire.
+      const localJobsToPush = jobsWithUrls.map(({ photos: _p, ...j }) => j as Job);
 
       // 1. Pull
       const pullRes = await fetch(`${apiBase()}/sync/rooms/${activeCode}`);
@@ -176,11 +219,17 @@ export function useSyncRoom() {
       if (!pushRes.ok) throw new Error('Push failed');
 
       // 4. Re-attach local photos to the result before handing back to the caller.
-      //    We stripped photos for the wire payload but the local device must keep them.
-      const localPhotosById = new Map(localJobs.map(j => [j.id, j.photos]));
+      //    Use jobsWithUrls (not localJobs) so any newly-uploaded photoUrls are
+      //    also persisted back to the device.
+      const localJobsById = new Map(jobsWithUrls.map(j => [j.id, j]));
       const mergedJobsWithPhotos = mergedJobs.map(j => {
-        const localPhotos = localPhotosById.get(j.id);
-        return localPhotos && localPhotos.length > 0 ? { ...j, photos: localPhotos } : j;
+        const local = localJobsById.get(j.id);
+        if (!local) return j;
+        return {
+          ...j,
+          ...(local.photos    && local.photos.length    > 0 ? { photos:    local.photos    } : {}),
+          ...(local.photoUrls && local.photoUrls.length > 0 ? { photoUrls: local.photoUrls } : {}),
+        };
       });
 
       const now = new Date().toISOString();
@@ -193,7 +242,7 @@ export function useSyncRoom() {
       setErrorMsg('Sync failed. Check your server URL and connection.');
       return null;
     }
-  }, [code]);
+  }, [code, uploadOnePhoto]);
 
   return {
     code, status, lastSynced, errorMsg,
