@@ -68,6 +68,29 @@ function parseQrScan(raw: string): { code: string | null; serverUrl: string | nu
   return { code: null, serverUrl: null };
 }
 
+// ── QR Scanner error boundary ─────────────────────────────────────────────────
+// CameraView can throw a native error during mount (module not ready, permission
+// race, etc.).  Without a local boundary the error bubbles to Expo Router's root
+// boundary and crashes the whole screen.  This boundary catches it locally and
+// calls onClose so the modal just dismisses instead of killing the app.
+
+interface QRBoundaryProps { onClose: () => void; children: React.ReactNode }
+interface QRBoundaryState { crashed: boolean }
+
+class QRScannerBoundary extends React.Component<QRBoundaryProps, QRBoundaryState> {
+  state: QRBoundaryState = { crashed: false };
+  static getDerivedStateFromError(): QRBoundaryState { return { crashed: true }; }
+  componentDidCatch(err: unknown) {
+    console.error('[QRScanner] native error caught by boundary:', err);
+    // Dismiss the modal on the next tick so we're not calling setState during render
+    setTimeout(() => this.props.onClose(), 0);
+  }
+  render() {
+    if (this.state.crashed) return null;
+    return this.props.children;
+  }
+}
+
 // ── QR Scanner ────────────────────────────────────────────────────────────────
 
 interface QRScannerProps {
@@ -691,12 +714,15 @@ export default function SyncScreen() {
 
       </ScrollView>
 
-      {/* QR Scanner modal */}
+      {/* QR Scanner modal — wrapped in a local error boundary so a native
+          camera crash closes the modal instead of crashing the whole screen */}
       {showScanner && (
-        <QRScanner
-          onScanned={handleScanned}
-          onClose={() => setShowScanner(false)}
-        />
+        <QRScannerBoundary onClose={() => setShowScanner(false)}>
+          <QRScanner
+            onScanned={handleScanned}
+            onClose={() => setShowScanner(false)}
+          />
+        </QRScannerBoundary>
       )}
     </View>
   );
