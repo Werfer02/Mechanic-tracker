@@ -63,21 +63,30 @@ export default function AddJobScreen() {
   const { addJob, updateJob, upsertVehicle, vehicles, jobs } = useTracker();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { jobId, registration: registrationParam } = useLocalSearchParams<{
+  const {
+    jobId,
+    registration: registrationParam,
+    make: makeParam,
+    model: modelParam,
+  } = useLocalSearchParams<{
     jobId?: string;
     registration?: string;
+    make?: string;
+    model?: string;
   }>();
   const isEditMode = !!jobId;
   const editJob = isEditMode ? jobs.find(j => j.id === jobId) : undefined;
   const initialRegistration = typeof registrationParam === 'string'
     ? registrationParam.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
     : '';
+  const initialMake = typeof makeParam === 'string' ? makeParam : '';
+  const initialModel = typeof modelParam === 'string' ? modelParam : '';
   // Tracks whether save was completed so the beforeRemove guard is skipped
   const savedRef = React.useRef(false);
 
   const [registration, setRegistration] = useState(initialRegistration);
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
+  const [make, setMake] = useState(initialMake);
+  const [model, setModel] = useState(initialModel);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState(nowTime());
   const [description, setDescription] = useState('');
@@ -141,7 +150,14 @@ export default function AddJobScreen() {
         (mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined) !== editJob.mileageAtService ||
         photos.join('|') !== (editJob.photos ?? []).join('|')
       ))
-    : (regUpper.length > 0 || description.trim().length > 0 || notes.trim().length > 0 || photos.length > 0);
+    : (
+        regUpper !== initialRegistration ||
+        make.trim() !== initialMake.trim() ||
+        model.trim() !== initialModel.trim() ||
+        description.trim().length > 0 ||
+        notes.trim().length > 0 ||
+        photos.length > 0
+      );
 
   // Single navigation guard — covers × button, Android hardware back, and iOS swipe-to-dismiss
   React.useEffect(() => {

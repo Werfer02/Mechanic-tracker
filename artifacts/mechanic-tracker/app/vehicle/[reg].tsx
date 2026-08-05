@@ -249,7 +249,11 @@ export default function VehicleDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/add-job',
-      params: { registration },
+      params: {
+        registration,
+        make: vehicle?.make ?? '',
+        model: vehicle?.model ?? '',
+      },
     });
   };
 
