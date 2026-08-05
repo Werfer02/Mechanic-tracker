@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The desktop/API server is intentionally reachable over plain HTTP on the
+  local network (for example, http://192.168.1.8:8080). Android release
+  builds otherwise reject that request before it reaches the server.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>
