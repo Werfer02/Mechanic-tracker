@@ -281,6 +281,9 @@ export default function SyncScreen() {
   /** Join a room then immediately sync — passes the returned code directly to
    *  sync() so it doesn't read stale React state (which is still null). */
   const handleJoinAndSync = async (roomCode: string) => {
+    // Use the current text input even if the user did not press "Save URL".
+    // This prevents a stale AsyncStorage URL from being used for the join.
+    if (urlInput.trim()) await setServerUrl(urlInput);
     const confirmedCode = await joinRoom(roomCode);
     if (confirmedCode) {
       const result = await sync(syncVehicles, syncJobs, confirmedCode);
@@ -290,6 +293,7 @@ export default function SyncScreen() {
 
   /** Create a room then immediately push local data into it */
   const handleCreateAndSync = async () => {
+    if (urlInput.trim()) await setServerUrl(urlInput);
     const newCode = await createRoom();
     if (newCode) {
       const result = await sync(syncVehicles, syncJobs, newCode);

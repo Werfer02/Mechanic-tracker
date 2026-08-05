@@ -85,8 +85,8 @@ export function useSyncRoom() {
   const createRoom = useCallback(async (): Promise<string | null> => {
     setStatus('syncing');
     setErrorMsg(null);
+    const endpoint = `${apiBase()}/sync/rooms`;
     try {
-      const endpoint = `${apiBase()}/sync/rooms`;
       const res = await fetch(endpoint, { method: 'POST' });
       if (!res.ok) throw new Error(`HTTP ${res.status} from ${endpoint}`);
       const { code: newCode } = await res.json() as { code: string };
@@ -97,7 +97,7 @@ export function useSyncRoom() {
     } catch (error) {
       console.warn('[sync] create room failed:', error);
       setStatus('error');
-      setErrorMsg(`Could not create sync room. Check your server URL and connection. (${errorDetail(error)})`);
+      setErrorMsg(`Could not create sync room. Check your server URL and connection. (${errorDetail(error)}: ${endpoint})`);
       return null;
     }
   }, []);
@@ -106,8 +106,8 @@ export function useSyncRoom() {
     const upper = roomCode.toUpperCase().trim();
     setStatus('syncing');
     setErrorMsg(null);
+    const endpoint = `${apiBase()}/sync/rooms/${upper}`;
     try {
-      const endpoint = `${apiBase()}/sync/rooms/${upper}`;
       const res = await fetch(endpoint);
       if (res.status === 404) {
         setStatus('error');
@@ -122,7 +122,7 @@ export function useSyncRoom() {
     } catch (error) {
       console.warn('[sync] join room failed:', error);
       setStatus('error');
-      setErrorMsg(`Could not connect. Check your server URL and connection. (${errorDetail(error)})`);
+      setErrorMsg(`Could not connect. Check your server URL and connection. (${errorDetail(error)}: ${endpoint})`);
       return null;
     }
   }, []);
