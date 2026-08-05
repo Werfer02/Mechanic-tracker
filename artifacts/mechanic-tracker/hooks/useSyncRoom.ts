@@ -24,6 +24,27 @@ function getDefaultApiBase(): string {
   return `https://${domain}/api`;
 }
 
+/**
+ * Accept both the desktop address (`http://192.168.1.50:8080`) and the
+ * API address (`http://192.168.1.50:8080/api`). Docker's nginx serves the
+ * desktop at the former and proxies API requests at the latter, so users
+ * naturally encounter both forms when configuring the mobile app.
+ */
+function normalizeApiBase(url: string): string {
+  let trimmed = url.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  // Make manual LAN entries such as `192.168.1.50:8080` valid fetch URLs.
+  if (!/^[a-z][a-z\d+.-]*:\/\//i.test(trimmed)) {
+    trimmed = `http://${trimmed}`;
+  }
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+
+function errorDetail(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return 'Network request failed';
+}
+
 export type SyncStatus = 'idle' | 'syncing' | 'ok' | 'error';
 
 export function useSyncRoom() {
@@ -44,20 +65,20 @@ export function useSyncRoom() {
       ]);
       if (storedCode)   setCode(storedCode);
       if (storedSynced) setLastSynced(storedSynced);
-      const url = storedUrl !== null ? storedUrl : getDefaultApiBase();
+      const url = normalizeApiBase(storedUrl !== null ? storedUrl : getDefaultApiBase());
       setServerUrlState(url);
       serverUrlRef.current = url;
     })();
   }, []);
 
   const setServerUrl = useCallback(async (url: string) => {
-    const trimmed = url.trim();
-    serverUrlRef.current = trimmed;
-    setServerUrlState(trimmed);
-    await AsyncStorage.setItem(SERVER_URL_KEY, trimmed);
+    const normalized = normalizeApiBase(url);
+    serverUrlRef.current = normalized;
+    setServerUrlState(normalized);
+    await AsyncStorage.setItem(SERVER_URL_KEY, normalized);
   }, []);
 
-  const apiBase = () => serverUrlRef.current || '/api';
+  const apiBase = () => normalizeApiBase(serverUrlRef.current) || '/api';
 
   // ── Room actions ─────────────────────────────────────────────────────────────
 
@@ -65,16 +86,18 @@ export function useSyncRoom() {
     setStatus('syncing');
     setErrorMsg(null);
     try {
-      const res = await fetch(`${apiBase()}/sync/rooms`, { method: 'POST' });
-      if (!res.ok) throw new Error('Server error');
+      const endpoint = `${apiBase()}/sync/rooms`;
+      const res = await fetch(endpoint, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} from ${endpoint}`);
       const { code: newCode } = await res.json() as { code: string };
       await AsyncStorage.setItem(SYNC_CODE_KEY, newCode);
       setCode(newCode);
       setStatus('ok');
       return newCode;
-    } catch {
+    } catch (error) {
+      console.warn('[sync] create room failed:', error);
       setStatus('error');
-      setErrorMsg('Could not create sync room. Check your server URL and connection.');
+      setErrorMsg(`Could not create sync room. Check your server URL and connection. (${errorDetail(error)})`);
       return null;
     }
   }, []);
@@ -84,20 +107,22 @@ export function useSyncRoom() {
     setStatus('syncing');
     setErrorMsg(null);
     try {
-      const res = await fetch(`${apiBase()}/sync/rooms/${upper}`);
+      const endpoint = `${apiBase()}/sync/rooms/${upper}`;
+      const res = await fetch(endpoint);
       if (res.status === 404) {
         setStatus('error');
         setErrorMsg('Room not found. Check the code and try again.');
         return null;
       }
-      if (!res.ok) throw new Error('Server error');
+      if (!res.ok) throw new Error(`HTTP ${res.status} from ${endpoint}`);
       await AsyncStorage.setItem(SYNC_CODE_KEY, upper);
       setCode(upper);
       setStatus('ok');
       return upper;
-    } catch {
+    } catch (error) {
+      console.warn('[sync] join room failed:', error);
       setStatus('error');
-      setErrorMsg('Could not connect. Check your server URL and connection.');
+      setErrorMsg(`Could not connect. Check your server URL and connection. (${errorDetail(error)})`);
       return null;
     }
   }, []);
@@ -261,9 +286,10 @@ export function useSyncRoom() {
       drainUploadQueue(activeCode);
 
       return { vehicles: mergedVehicles, jobs: mergedJobsWithPhotos };
-    } catch {
+    } catch (error) {
       setStatus('error');
-      setErrorMsg('Sync failed. Check your server URL and connection.');
+      console.warn('[sync] sync failed:', error);
+      setErrorMsg(`Sync failed. Check your server URL and connection. (${errorDetail(error)})`);
       return null;
     }
   }, [code, drainUploadQueue]);
