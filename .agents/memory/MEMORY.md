@@ -1,2 +1,3 @@
 - [Mobile version bump](mobile-version-bump.md) — always increment APP_VERSION in constants/version.ts with every mobile app change
 - [Express global body limit](express-body-limit.md) — global express.json() defaults to 100kb; per-route overrides never fire if global rejects first — keep global at 30mb
+- [Standalone mobile network debugging](standalone-mobile-network-debug.md) — desktop-page reachability does not prove the API is reachable from a standalone APK
