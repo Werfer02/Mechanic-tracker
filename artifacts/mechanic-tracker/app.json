@@ -17,7 +17,12 @@
       "supportsTablet": false
     },
     "android": {
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.werfer.mechanictracker"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -41,6 +46,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "32b54f6c-9433-4ba6-a918-66eee6fd9314"
+      }
+    },
+    "owner": "werfer"
   }
 }
