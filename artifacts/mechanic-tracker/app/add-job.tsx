@@ -63,13 +63,19 @@ export default function AddJobScreen() {
   const { addJob, updateJob, upsertVehicle, vehicles, jobs } = useTracker();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { jobId } = useLocalSearchParams<{ jobId?: string }>();
+  const { jobId, registration: registrationParam } = useLocalSearchParams<{
+    jobId?: string;
+    registration?: string;
+  }>();
   const isEditMode = !!jobId;
   const editJob = isEditMode ? jobs.find(j => j.id === jobId) : undefined;
+  const initialRegistration = typeof registrationParam === 'string'
+    ? registrationParam.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+    : '';
   // Tracks whether save was completed so the beforeRemove guard is skipped
   const savedRef = React.useRef(false);
 
-  const [registration, setRegistration] = useState('');
+  const [registration, setRegistration] = useState(initialRegistration);
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -111,7 +117,7 @@ export default function AddJobScreen() {
     }
   }, [editJob, vehicles]);
 
-  const regUpper = registration.toUpperCase().trim();
+  const regUpper = registration.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
   const suggestions = vehicles.filter(v =>
     v.registration.includes(regUpper) && regUpper.length > 0 && v.registration !== regUpper
@@ -412,8 +418,11 @@ export default function AddJobScreen() {
             <TextInput
               style={[s.input, s.regInput]}
               value={registration}
-              onChangeText={v => { setRegistration(v); setShowSuggestions(true); }}
-              placeholder="e.g. ABC 123"
+              onChangeText={v => {
+                setRegistration(v.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                setShowSuggestions(true);
+              }}
+              placeholder="e.g. ABC123"
               placeholderTextColor={colors.mutedForeground}
               autoCapitalize="characters"
               returnKeyType="done"

@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 
 const formSchema = z.object({
-  registration: z.string().min(1, 'Registration is required'),
+  registration: z.string().regex(/^[A-Z0-9]+$/, 'Use capital letters and numbers only'),
   make: z.string().min(1, 'Make is required'),
   model: z.string().min(1, 'Model is required'),
 });
@@ -58,7 +58,7 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
   const onSubmit = (data: FormValues) => {
     const newVehicle: Vehicle = {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-      registration: data.registration.toUpperCase(),
+      registration: data.registration.toUpperCase().replace(/[^A-Z0-9]/g, ''),
       make: data.make,
       model: data.model,
       createdAt: new Date().toISOString(),
@@ -82,7 +82,12 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
                 <FormItem>
                   <FormLabel>Registration</FormLabel>
                   <FormControl>
-                    <Input placeholder="AB12 CDE" {...field} className="uppercase font-mono tracking-wider" />
+                    <Input
+                      placeholder="AB12CDE"
+                      {...field}
+                      onChange={e => field.onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                      className="uppercase font-mono tracking-wider"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

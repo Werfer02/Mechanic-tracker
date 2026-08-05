@@ -123,7 +123,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const upsertVehicle = useCallback((registration: string, make = '', model = '', mileage?: number): Vehicle => {
-    const reg = registration.toUpperCase().trim();
+    const reg = registration.toUpperCase().replace(/[^A-Z0-9]/g, '');
     let existing: Vehicle | undefined;
     setVehicles(prev => {
       existing = prev.find(v => v.registration === reg);

@@ -143,7 +143,7 @@ function useDesktopStore() {
 
   /** Upsert a vehicle by registration. Make/model are optional. Un-deletes if previously deleted. */
   const upsertVehicle = useCallback((reg: string, make = '', model = '', mileage?: number): Vehicle => {
-    const r = reg.toUpperCase().trim().replace(/\s+/g, '');
+    const r = reg.toUpperCase().replace(/[^A-Z0-9]/g, '');
     let result: Vehicle | undefined;
     setVehicles(prev => {
       const existing = prev.find(v => v.registration === r);
@@ -523,7 +523,7 @@ function AddVehicleModal({ onAdd, onClose }: {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const r = reg.trim().toUpperCase().replace(/\s+/g, '');
+    const r = reg.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!r) { setError('Registration is required'); return; }
     onAdd(r, make.trim(), model.trim());
   }
@@ -535,7 +535,7 @@ function AddVehicleModal({ onAdd, onClose }: {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <FieldLabel>Registration <span className="text-destructive">*</span></FieldLabel>
-            <Input placeholder="e.g. AB12 CDE" value={reg} onChange={e => setReg(e.target.value.toUpperCase())} autoFocus required />
+            <Input placeholder="e.g. AB12CDE" value={reg} onChange={e => setReg(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} autoFocus required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -580,7 +580,7 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   const [mileageInput, setMileageInput] = useState('');
   const [showNewVehicle, setShowNew] = useState(false);
 
-  const reg = regInput.trim().toUpperCase().replace(/\s+/g, '');
+  const reg = regInput.toUpperCase().replace(/[^A-Z0-9]/g, '');
   const existingVehicle = vehicles.find(v => v.registration === reg);
   const isNewVehicle = reg.length > 0 && !existingVehicle;
 
@@ -626,9 +626,9 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
                 {showNewVehicle && (
                   <div className="rounded-md border border-border p-3 space-y-2" style={{ background: 'hsl(var(--background))' }}>
                     <Input
-                      placeholder="Registration (e.g. AB12 CDE)"
+                      placeholder="Registration (e.g. AB12CDE)"
                       value={regInput}
-                      onChange={e => setRegInput(e.target.value.toUpperCase())}
+                      onChange={e => setRegInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                       autoFocus
                     />
                     <div className="grid grid-cols-2 gap-2">
@@ -646,9 +646,9 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
             ) : (
               <div className="space-y-2">
                 <Input
-                  placeholder="Registration (e.g. AB12 CDE)"
+                  placeholder="Registration (e.g. AB12CDE)"
                   value={regInput}
-                  onChange={e => setRegInput(e.target.value.toUpperCase())}
+                  onChange={e => setRegInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                   autoFocus
                   required
                 />
@@ -942,7 +942,7 @@ function ConnectModal({ onConnect, onClose, serverUrl, onServerUrlChange }: {
   serverUrl: string;
   onServerUrlChange: (url: string) => void;
 }) {
-  const [tab, setTab]                       = useState<'join' | 'create'>('join');
+  const [tab, setTab]                       = useState<'join' | 'create'>('create');
   const [codeInput, setCode]                = useState('');
   const [busy, setBusy]                     = useState(false);
   const [error, setError]                   = useState('');
