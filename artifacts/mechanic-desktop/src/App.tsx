@@ -16,6 +16,7 @@ interface Vehicle {
   registration: string;
   make: string;
   model: string;
+  owner?: string;
   mileage?: number;
   createdAt: string;
   _deleted?: boolean;
@@ -26,7 +27,9 @@ interface Job {
   id: string;
   vehicleRegistration: string;
   date: string;
-  time: string;
+  timeStarted?: string;
+  timeFinished?: string;
+  time?: string;
   description: string;
   notes: string;
   isService: boolean;
@@ -47,6 +50,14 @@ function fmtDate(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric',
   });
+}
+
+function getTimeStarted(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
+  return job.timeStarted ?? job.time ?? '';
+}
+
+function getTimeFinished(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
+  return job.timeFinished ?? job.timeStarted ?? job.time ?? '';
 }
 
 const LS_VEHICLES  = 'mechanic_desktop_vehicles';
@@ -142,7 +153,7 @@ function useDesktopStore() {
   }, [vehicles, jobs, ready]);
 
   /** Upsert a vehicle by registration. Make/model are optional. Un-deletes if previously deleted. */
-  const upsertVehicle = useCallback((reg: string, make = '', model = '', mileage?: number): Vehicle => {
+  const upsertVehicle = useCallback((reg: string, make = '', model = '', mileage?: number, owner?: string): Vehicle => {
     const r = reg.toUpperCase().replace(/[^A-Z0-9]/g, '');
     let result: Vehicle | undefined;
     setVehicles(prev => {
@@ -150,17 +161,17 @@ function useDesktopStore() {
       if (existing) {
         const updated = prev.map(v =>
           v.registration === r
-            ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model, ...(mileage !== undefined ? { mileage } : {}) }
+             ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model, ...(owner !== undefined ? { owner: owner || undefined } : { owner: v.owner }), ...(mileage !== undefined ? { mileage } : {}) }
             : v
         );
         result = updated.find(v => v.registration === r);
         return updated;
       }
-      const newV: Vehicle = { id: genId(), registration: r, make, model, ...(mileage !== undefined ? { mileage } : {}), createdAt: new Date().toISOString() };
+      const newV: Vehicle = { id: genId(), registration: r, make, model, ...(owner ? { owner } : {}), ...(mileage !== undefined ? { mileage } : {}), createdAt: new Date().toISOString() };
       result = newV;
       return [...prev, newV];
     });
-    return result ?? { id: genId(), registration: r, make, model, createdAt: new Date().toISOString() };
+    return result ?? { id: genId(), registration: r, make, model, ...(owner ? { owner } : {}), createdAt: new Date().toISOString() };
   }, []);
 
   const addJob = useCallback((data: Omit<Job, 'id' | 'createdAt'>): Job => {
@@ -513,19 +524,20 @@ function ConfirmModal({ title, message, confirmLabel = 'Delete', danger = true, 
 // ── AddVehicleModal ───────────────────────────────────────────────────────────
 
 function AddVehicleModal({ onAdd, onClose }: {
-  onAdd: (reg: string, make: string, model: string) => void;
+  onAdd: (reg: string, make: string, model: string, owner: string) => void;
   onClose: () => void;
 }) {
   const [reg, setReg] = useState('');
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
+  const [owner, setOwner] = useState('');
   const [error, setError] = useState('');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const r = reg.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!r) { setError('Registration is required'); return; }
-    onAdd(r, make.trim(), model.trim());
+    onAdd(r, make.trim(), model.trim(), owner.trim());
   }
 
   return (
@@ -547,6 +559,10 @@ function AddVehicleModal({ onAdd, onClose }: {
               <Input placeholder="e.g. Focus" value={model} onChange={e => setModel(e.target.value)} />
             </div>
           </div>
+          <div>
+            <FieldLabel>Owner (optional)</FieldLabel>
+            <Input placeholder="e.g. Alex Smith" value={owner} onChange={e => setOwner(e.target.value)} />
+          </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-3 pt-1">
             <Btn variant="secondary" type="button" onClick={onClose} className="flex-1">Cancel</Btn>
@@ -563,7 +579,7 @@ function AddVehicleModal({ onAdd, onClose }: {
 function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   vehicles: Vehicle[];
   defaultReg?: string;
-  onAdd: (reg: string, make: string, model: string, job: Omit<Job, 'id' | 'createdAt' | 'vehicleRegistration'>) => void;
+  onAdd: (reg: string, make: string, model: string, owner: string, job: Omit<Job, 'id' | 'createdAt' | 'vehicleRegistration'>) => void;
   onClose: () => void;
 }) {
   const today   = new Date().toISOString().slice(0, 10);
@@ -572,8 +588,10 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   const [regInput, setRegInput]     = useState(defaultReg || (vehicles[0]?.registration ?? ''));
   const [make, setMake]             = useState('');
   const [model, setModel]           = useState('');
+  const [owner, setOwner]           = useState('');
   const [date, setDate]             = useState(today);
-  const [time, setTime]             = useState(nowTime);
+  const [timeStarted, setTimeStarted] = useState(nowTime);
+  const [timeFinished, setTimeFinished] = useState(nowTime);
   const [description, setDesc]      = useState('');
   const [notes, setNotes]           = useState('');
   const [isService, setIsService]   = useState(false);
@@ -588,8 +606,8 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
     e.preventDefault();
     if (!reg || !description.trim()) return;
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
-    onAdd(reg, make.trim(), model.trim(), {
-      date, time,
+    onAdd(reg, make.trim(), model.trim(), owner.trim(), {
+      date, timeStarted, timeFinished,
       description: description.trim(),
       notes: notes.trim(),
       isService,
@@ -635,6 +653,7 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
                       <Input placeholder="Make (optional)" value={make} onChange={e => setMake(e.target.value)} />
                       <Input placeholder="Model (optional)" value={model} onChange={e => setModel(e.target.value)} />
                     </div>
+                    <Input placeholder="Owner (optional)" value={owner} onChange={e => setOwner(e.target.value)} />
                     {isNewVehicle && (
                       <p className="text-xs text-muted-foreground">
                         Vehicle <strong className="text-foreground">{reg}</strong> will be created automatically.
@@ -653,24 +672,33 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
                   required
                 />
                 {isNewVehicle && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Make (optional)" value={make} onChange={e => setMake(e.target.value)} />
-                    <Input placeholder="Model (optional)" value={model} onChange={e => setModel(e.target.value)} />
-                  </div>
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input placeholder="Make (optional)" value={make} onChange={e => setMake(e.target.value)} />
+                      <Input placeholder="Model (optional)" value={model} onChange={e => setModel(e.target.value)} />
+                    </div>
+                    <Input placeholder="Owner (optional)" value={owner} onChange={e => setOwner(e.target.value)} />
+                  </>
                 )}
               </div>
             )}
           </div>
 
-          {/* Date + Time */}
+          {/* Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel>Date</FieldLabel>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <FieldLabel>Time</FieldLabel>
-              <Input type="time" value={time} onChange={e => setTime(e.target.value)} required />
+              <FieldLabel>Time started</FieldLabel>
+              <Input type="time" value={timeStarted} onChange={e => setTimeStarted(e.target.value)} required />
+            </div>
+            <div>
+              <FieldLabel>Time finished</FieldLabel>
+              <Input type="time" value={timeFinished} onChange={e => setTimeFinished(e.target.value)} required />
             </div>
           </div>
 
@@ -717,17 +745,18 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
 
 function EditVehicleModal({ vehicle, onSave, onClose }: {
   vehicle: Vehicle;
-  onSave: (make: string, model: string, mileage?: number) => void;
+  onSave: (make: string, model: string, mileage?: number, owner?: string) => void;
   onClose: () => void;
 }) {
   const [make, setMake]         = useState(vehicle.make);
   const [model, setModel]       = useState(vehicle.model);
+  const [owner, setOwner]       = useState(vehicle.owner ?? '');
   const [mileageInput, setMileage] = useState(vehicle.mileage?.toString() ?? '');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
-    onSave(make.trim(), model.trim(), mileage);
+    onSave(make.trim(), model.trim(), mileage, owner.trim());
   }
 
   return (
@@ -749,6 +778,10 @@ function EditVehicleModal({ vehicle, onSave, onClose }: {
               <FieldLabel>Model</FieldLabel>
               <Input placeholder="e.g. Focus" value={model} onChange={e => setModel(e.target.value)} />
             </div>
+          </div>
+          <div>
+            <FieldLabel>Owner (optional)</FieldLabel>
+            <Input placeholder="e.g. Alex Smith" value={owner} onChange={e => setOwner(e.target.value)} />
           </div>
           <div>
             <FieldLabel>Mileage (optional)</FieldLabel>
@@ -778,7 +811,8 @@ function EditJobModal({ job, onSave, onClose }: {
   onClose: () => void;
 }) {
   const [date, setDate]               = useState(job.date);
-  const [time, setTime]               = useState(job.time);
+  const [timeStarted, setTimeStarted] = useState(getTimeStarted(job));
+  const [timeFinished, setTimeFinished] = useState(getTimeFinished(job));
   const [description, setDesc]        = useState(job.description);
   const [notes, setNotes]             = useState(job.notes);
   const [isService, setIsService]     = useState(job.isService);
@@ -787,7 +821,8 @@ function EditJobModal({ job, onSave, onClose }: {
 
   const isDirty =
     date !== job.date ||
-    time !== job.time ||
+    timeStarted !== getTimeStarted(job) ||
+    timeFinished !== getTimeFinished(job) ||
     description.trim() !== job.description ||
     notes.trim() !== job.notes ||
     isService !== job.isService ||
@@ -810,7 +845,7 @@ function EditJobModal({ job, onSave, onClose }: {
     if (!description.trim()) return;
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
     onSave(job.id, {
-      date, time,
+      date, timeStarted, timeFinished,
       description: description.trim(),
       notes: notes.trim(),
       isService,
@@ -829,15 +864,21 @@ function EditJobModal({ job, onSave, onClose }: {
             </p>
           </div>
           <form onSubmit={submit} className="space-y-4">
-            {/* Date + Time */}
+            {/* Date */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel>Date</FieldLabel>
                 <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <FieldLabel>Time</FieldLabel>
-                <Input type="time" value={time} onChange={e => setTime(e.target.value)} required />
+                <FieldLabel>Time started</FieldLabel>
+                <Input type="time" value={timeStarted} onChange={e => setTimeStarted(e.target.value)} required />
+              </div>
+              <div>
+                <FieldLabel>Time finished</FieldLabel>
+                <Input type="time" value={timeFinished} onChange={e => setTimeFinished(e.target.value)} required />
               </div>
             </div>
             {/* Description */}
@@ -1159,7 +1200,9 @@ function JobCard({ job, onDelete, onEdit, serverUrl }: { job: Job; onDelete: () 
         style={{ borderColor: 'hsl(var(--border))' }}>
         <div className="min-w-[90px] text-right shrink-0">
           <div className="text-xs text-muted-foreground">{dateStr}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{job.time}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            Started {getTimeStarted(job)} · Finished {getTimeFinished(job)}
+          </div>
         </div>
         <div className="w-px self-stretch bg-border" />
         <div className="flex-1 min-w-0">
@@ -1232,6 +1275,7 @@ function WorkshopView() {
   const [confirmDeleteVehicle, setConfirmDeleteVehicle] = useState<Vehicle | null>(null);
   const [editingJob, setEditingJob]       = useState<Job | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [collapsedOwners, setCollapsedOwners] = useState<Set<string>>(new Set());
   const [search, setSearch]               = useState('');
   const hasAutoSelected = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1295,24 +1339,33 @@ function WorkshopView() {
   }, [vehicles, selectedReg]);
 
   const selectedVehicle = vehicles.find(v => v.registration === selectedReg) ?? null;
+  const vehicleGroups = Array.from(
+    vehicles.reduce((groups, vehicle) => {
+      const owner = vehicle.owner?.trim() || 'No owner';
+      const group = groups.get(owner) ?? [];
+      group.push(vehicle);
+      groups.set(owner, group);
+      return groups;
+    }, new Map<string, Vehicle[]>())
+  ).sort(([a], [b]) => a === 'No owner' ? 1 : b === 'No owner' ? -1 : a.localeCompare(b));
 
   const vehicleJobs = jobs
     .filter(j => j.vehicleRegistration === selectedReg)
     .filter(j => !search || j.description.toLowerCase().includes(search.toLowerCase()) || j.notes.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+    .sort((a, b) => new Date(`${b.date}T${getTimeStarted(b)}`).getTime() - new Date(`${a.date}T${getTimeStarted(a)}`).getTime());
 
   const lastWork    = vehicleJobs[0] ?? null;
   const lastService = vehicleJobs.find(j => j.isService) ?? null;
 
-  function handleAddVehicle(reg: string, make: string, model: string) {
-    upsertVehicle(reg, make, model);
+  function handleAddVehicle(reg: string, make: string, model: string, owner: string) {
+    upsertVehicle(reg, make, model, undefined, owner);
     setSelectedReg(reg);
     setShowAddVehicle(false);
   }
 
-  function handleAddJob(reg: string, make: string, model: string, jobData: Omit<Job, 'id' | 'createdAt' | 'vehicleRegistration'>) {
+  function handleAddJob(reg: string, make: string, model: string, owner: string, jobData: Omit<Job, 'id' | 'createdAt' | 'vehicleRegistration'>) {
     // Upsert vehicle — also updates mileage when a service with mileage is logged
-    upsertVehicle(reg, make, model, jobData.mileageAtService);
+    upsertVehicle(reg, make, model, jobData.mileageAtService, owner);
     addJob({ ...jobData, vehicleRegistration: reg });
     setSelectedReg(reg);
     setShowAddJob(false);
@@ -1430,25 +1483,47 @@ function WorkshopView() {
                 <button onClick={() => setShowAddVehicle(true)} className="text-xs text-primary hover:underline">Add your first vehicle</button>
               </div>
             )}
-            {vehicles.map(v => {
-              const jobCount = jobs.filter(j => j.vehicleRegistration === v.registration).length;
-              const isSelected = v.registration === selectedReg;
+            {vehicleGroups.map(([owner, group]) => {
+              const collapsed = collapsedOwners.has(owner);
               return (
-                <div key={v.id} className={`group relative transition-colors ${isSelected ? 'bg-secondary' : 'hover:bg-secondary/50'}`}>
-                  {isSelected && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-r" />}
-                  <button className="w-full text-left px-4 py-3" onClick={() => setSelectedReg(v.registration)}>
-                    <NumberPlate reg={v.registration} size="sm" />
-                    {(v.make || v.model) && (
-                      <div className="mt-1.5 text-xs text-muted-foreground truncate">{v.make} {v.model}</div>
-                    )}
-                    <div className="mt-0.5 text-[10px] text-muted-foreground/60">{jobCount} {jobCount === 1 ? 'job' : 'jobs'}</div>
-                  </button>
+                <div key={owner}>
                   <button
-                    onClick={() => setConfirmDeleteVehicle(v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                    title="Delete vehicle">
-                    <TrashIcon />
+                    className="w-full flex items-center justify-between px-4 py-2 text-left border-b border-border/60 hover:bg-secondary/50"
+                    onClick={() => setCollapsedOwners(prev => {
+                      const next = new Set(prev);
+                      if (next.has(owner)) next.delete(owner);
+                      else next.add(owner);
+                      return next;
+                    })}
+                  >
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <span className="text-primary">{collapsed ? '▸' : '▾'}</span>
+                      {owner}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/60">{group.length}</span>
                   </button>
+                  {!collapsed && group.map(v => {
+                    const jobCount = jobs.filter(j => j.vehicleRegistration === v.registration).length;
+                    const isSelected = v.registration === selectedReg;
+                    return (
+                      <div key={v.id} className={`group relative transition-colors ${isSelected ? 'bg-secondary' : 'hover:bg-secondary/50'}`}>
+                        {isSelected && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-r" />}
+                        <button className="w-full text-left px-4 py-3" onClick={() => setSelectedReg(v.registration)}>
+                          <NumberPlate reg={v.registration} size="sm" />
+                          {(v.make || v.model) && (
+                            <div className="mt-1.5 text-xs text-muted-foreground truncate">{v.make} {v.model}</div>
+                          )}
+                          <div className="mt-0.5 text-[10px] text-muted-foreground/60">{jobCount} {jobCount === 1 ? 'job' : 'jobs'}</div>
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteVehicle(v)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                          title="Delete vehicle">
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -1484,6 +1559,9 @@ function WorkshopView() {
                       <div className="mt-1.5 text-sm text-muted-foreground">
                         {selectedVehicle.make} {selectedVehicle.model}
                       </div>
+                    )}
+                    {selectedVehicle.owner && (
+                      <div className="mt-1 text-xs text-muted-foreground">Owner: {selectedVehicle.owner}</div>
                     )}
                     <div className="mt-2 flex items-center gap-5 text-xs text-muted-foreground flex-wrap">
                       {lastWork && (
@@ -1574,8 +1652,8 @@ function WorkshopView() {
       {editingVehicle && (
         <EditVehicleModal
           vehicle={editingVehicle}
-          onSave={(make, model, mileage) => {
-            upsertVehicle(editingVehicle.registration, make, model, mileage);
+           onSave={(make, model, mileage, owner) => {
+             upsertVehicle(editingVehicle.registration, make, model, mileage, owner);
             setEditingVehicle(null);
           }}
           onClose={() => setEditingVehicle(null)}

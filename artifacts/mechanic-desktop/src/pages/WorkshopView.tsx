@@ -275,7 +275,9 @@ export default function WorkshopView() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-4 h-4 text-primary" />
-                          <span className="font-mono">{job.time}</span>
+                          <span className="font-mono">
+                            Started {job.timeStarted ?? job.time ?? '—'} · Finished {job.timeFinished ?? job.timeStarted ?? job.time ?? '—'}
+                          </span>
                         </div>
                       </div>
 

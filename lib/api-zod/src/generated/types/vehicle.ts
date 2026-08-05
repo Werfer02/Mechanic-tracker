@@ -11,5 +11,6 @@ export interface Vehicle {
   registration: string;
   make: string;
   model: string;
+  owner?: string;
   createdAt: string;
 }

@@ -18,6 +18,7 @@ export interface Vehicle {
   registration: string;
   make: string;
   model: string;
+  owner?: string;
   createdAt: string;
 }
 
@@ -25,7 +26,10 @@ export interface Job {
   id: string;
   vehicleRegistration: string;
   date: string;
-  time: string;
+  timeStarted?: string;
+  timeFinished?: string;
+  /** Legacy field; use timeStarted and timeFinished. */
+  time?: string;
   description: string;
   notes: string;
   isService: boolean;

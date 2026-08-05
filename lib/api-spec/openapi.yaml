@@ -109,16 +109,19 @@ components:
         registration: { type: string }
         make:         { type: string }
         model:        { type: string }
+        owner:        { type: string }
         createdAt:    { type: string }
 
     Job:
       type: object
-      required: [id, vehicleRegistration, date, time, description, notes, isService, createdAt]
+      required: [id, vehicleRegistration, date, description, notes, isService, createdAt]
       properties:
         id:                  { type: string }
         vehicleRegistration: { type: string }
         date:                { type: string }
-        time:                { type: string }
+        timeStarted:         { type: string }
+        timeFinished:        { type: string }
+        time:                { type: string, description: "Legacy field; use timeStarted and timeFinished." }
         description:         { type: string }
         notes:               { type: string }
         isService:           { type: boolean }

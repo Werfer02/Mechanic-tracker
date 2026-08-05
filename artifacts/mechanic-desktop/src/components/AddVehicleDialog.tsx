@@ -25,6 +25,7 @@ const formSchema = z.object({
   registration: z.string().regex(/^[A-Z0-9]+$/, 'Use capital letters and numbers only'),
   make: z.string().min(1, 'Make is required'),
   model: z.string().min(1, 'Model is required'),
+  owner: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -42,6 +43,7 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
       registration: '',
       make: '',
       model: '',
+      owner: '',
     },
   });
 
@@ -51,6 +53,7 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
         registration: '',
         make: '',
         model: '',
+        owner: '',
       });
     }
   }, [open, form]);
@@ -61,6 +64,7 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
       registration: data.registration.toUpperCase().replace(/[^A-Z0-9]/g, ''),
       make: data.make,
       model: data.model,
+      owner: data.owner?.trim() || undefined,
       createdAt: new Date().toISOString(),
     };
     onAdd(newVehicle);
@@ -88,6 +92,19 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
                       onChange={e => field.onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                       className="uppercase font-mono tracking-wider"
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="owner"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Owner (optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Alex Smith" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

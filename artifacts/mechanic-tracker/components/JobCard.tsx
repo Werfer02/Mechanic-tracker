@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { Job } from '@/context/TrackerContext';
 import ConfirmModal from '@/components/ConfirmModal';
+import { getTimeFinished, getTimeStarted } from '@/utils/jobTime';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -49,7 +50,7 @@ export default function JobCard({ job, onDelete, onEdit, showVehicle = true }: P
     },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
     leftTop: { gap: 4, flex: 1 },
-    dateTime: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    dateTime: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
     dateText: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_500Medium' },
     regBadge: {
       alignSelf: 'flex-start',
@@ -94,7 +95,7 @@ export default function JobCard({ job, onDelete, onEdit, showVehicle = true }: P
               <Text style={s.dateText}>{formatDate(job.date)}</Text>
               <View style={s.dot} />
               <Feather name="clock" size={13} color={colors.mutedForeground} />
-              <Text style={s.dateText}>{job.time}</Text>
+              <Text style={s.dateText}>Started {getTimeStarted(job)} · Finished {getTimeFinished(job)}</Text>
             </View>
             <View style={s.badgesRow}>
               {showVehicle && (

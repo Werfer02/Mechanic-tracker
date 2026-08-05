@@ -11,6 +11,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { getTimeFinished, getTimeStarted } from '@/utils/jobTime';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -28,16 +29,18 @@ interface EditVehicleModalProps {
   visible: boolean;
   make: string;
   model: string;
+  owner?: string;
   mileage?: number;
-  onSave: (make: string, model: string, mileage?: number) => void;
+  onSave: (make: string, model: string, mileage?: number, owner?: string) => void;
   onCancel: () => void;
 }
 
-function EditVehicleModal({ visible, make: initMake, model: initModel, mileage: initMileage, onSave, onCancel }: EditVehicleModalProps) {
+function EditVehicleModal({ visible, make: initMake, model: initModel, owner: initOwner, mileage: initMileage, onSave, onCancel }: EditVehicleModalProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [make, setMake] = useState(initMake);
   const [model, setModel] = useState(initModel);
+  const [owner, setOwner] = useState(initOwner);
   const [mileageInput, setMileageInput] = useState(initMileage !== undefined ? String(initMileage) : '');
 
   // Reset fields when modal opens
@@ -45,13 +48,14 @@ function EditVehicleModal({ visible, make: initMake, model: initModel, mileage: 
     if (visible) {
       setMake(initMake);
       setModel(initModel);
+      setOwner(initOwner);
       setMileageInput(initMileage !== undefined ? String(initMileage) : '');
     }
-  }, [visible, initMake, initModel, initMileage]);
+  }, [visible, initMake, initModel, initOwner, initMileage]);
 
   function handleSave() {
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
-    onSave(make.trim(), model.trim(), mileage);
+    onSave(make.trim(), model.trim(), mileage, owner?.trim() ?? '');
   }
 
   const s = StyleSheet.create({
@@ -190,6 +194,17 @@ function EditVehicleModal({ visible, make: initMake, model: initModel, mileage: 
                 </View>
               </View>
               <View style={s.field}>
+                <Text style={s.label}>Owner (optional)</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="e.g. Alex Smith"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={owner}
+                  onChangeText={setOwner}
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={s.field}>
                 <Text style={s.label}>Mileage (optional)</Text>
                 <TextInput
                   style={s.input}
@@ -253,6 +268,7 @@ export default function VehicleDetailScreen() {
         registration,
         make: vehicle?.make ?? '',
         model: vehicle?.model ?? '',
+        owner: vehicle?.owner ?? '',
       },
     });
   };
@@ -361,6 +377,9 @@ export default function VehicleDetailScreen() {
           {!!(vehicle?.make || vehicle?.model) && (
             <Text style={s.makeModel}>{[vehicle?.make, vehicle?.model].filter(Boolean).join(' ')}</Text>
           )}
+          {!!vehicle?.owner && (
+            <Text style={s.makeModel}>Owner: {vehicle.owner}</Text>
+          )}
         </View>
       </View>
 
@@ -394,7 +413,7 @@ export default function VehicleDetailScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[s.statLabel, { color: colors.primary }]}>Last Full Service</Text>
                 <Text style={[s.statValue, { fontSize: 15, color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>
-                  {formatDate(lastServiceEntry.date)} · {lastServiceEntry.time}
+                  {formatDate(lastServiceEntry.date)} · {getTimeStarted(lastServiceEntry)}–{getTimeFinished(lastServiceEntry)}
                 </Text>
                 {!!lastServiceEntry.description && (
                   <Text numberOfLines={1} style={{ fontSize: 12, color: colors.primary + 'AA',
@@ -463,9 +482,10 @@ export default function VehicleDetailScreen() {
         visible={editingVehicle}
         make={vehicle?.make ?? ''}
         model={vehicle?.model ?? ''}
+            owner={vehicle?.owner}
         mileage={vehicle?.mileage}
-        onSave={(make, model, mileage) => {
-          upsertVehicle(registration, make, model, mileage);
+            onSave={(make, model, mileage, owner) => {
+          upsertVehicle(registration, make, model, mileage, owner);
           setEditingVehicle(false);
         }}
         onCancel={() => setEditingVehicle(false)}

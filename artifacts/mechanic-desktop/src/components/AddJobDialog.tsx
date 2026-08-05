@@ -26,7 +26,8 @@ import {
 const formSchema = z.object({
   vehicleRegistration: z.string().min(1, 'Registration is required'),
   date: z.string().min(1, 'Date is required'),
-  time: z.string().min(1, 'Time is required'),
+  timeStarted: z.string().min(1, 'Start time is required'),
+  timeFinished: z.string().min(1, 'Finish time is required'),
   description: z.string().min(1, 'Description is required'),
   notes: z.string().optional(),
   isService: z.boolean().default(false),
@@ -48,7 +49,8 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
     defaultValues: {
       vehicleRegistration: prefilledRegistration || '',
       date: new Date().toISOString().split('T')[0],
-      time: new Date().toTimeString().substring(0, 5),
+      timeStarted: new Date().toTimeString().substring(0, 5),
+      timeFinished: new Date().toTimeString().substring(0, 5),
       description: '',
       notes: '',
       isService: false,
@@ -61,7 +63,8 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
       form.reset({
         vehicleRegistration: prefilledRegistration || '',
         date: new Date().toISOString().split('T')[0],
-        time: new Date().toTimeString().substring(0, 5),
+        timeStarted: new Date().toTimeString().substring(0, 5),
+        timeFinished: new Date().toTimeString().substring(0, 5),
         description: '',
         notes: '',
         isService: false,
@@ -74,7 +77,8 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
       vehicleRegistration: data.vehicleRegistration,
       date: data.date,
-      time: data.time,
+      timeStarted: data.timeStarted,
+      timeFinished: data.timeFinished,
       description: data.description,
       notes: data.notes || '',
       isService: data.isService,
@@ -119,12 +123,27 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
                   </FormItem>
                 )}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="time"
+                name="timeStarted"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Time</FormLabel>
+                    <FormLabel>Time started</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="timeFinished"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time finished</FormLabel>
                     <FormControl>
                       <Input type="time" {...field} />
                     </FormControl>

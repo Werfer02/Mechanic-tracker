@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { Vehicle, Job } from '@/context/TrackerContext';
 import ConfirmModal from '@/components/ConfirmModal';
+import { getTimeFinished, getTimeStarted } from '@/utils/jobTime';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -112,7 +113,7 @@ export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEnt
               <View style={s.lastServiceRow}>
                 <Feather name="tool" size={12} color={colors.mutedForeground} />
                 <Text style={s.lastServiceLabel}>Last work:</Text>
-                <Text style={s.lastServiceValue}>{formatDate(lastJob.date)} · {lastJob.time}</Text>
+                <Text style={s.lastServiceValue}>{formatDate(lastJob.date)} · {getTimeStarted(lastJob)}–{getTimeFinished(lastJob)}</Text>
                 <View style={s.dot} />
                 <Text style={s.lastServiceDesc} numberOfLines={1}>{lastJob.description}</Text>
               </View>
@@ -122,7 +123,7 @@ export default function VehicleCard({ vehicle, jobCount, lastJob, lastServiceEnt
                 <Feather name="clock" size={12} color={colors.primary} />
                 <Text style={[s.lastServiceLabel, { color: colors.primary }]}>Last service:</Text>
                 <Text style={[s.lastServiceValue, { color: colors.primary }]}>
-                  {formatDate(lastServiceEntry.date)} · {lastServiceEntry.time}
+                  {formatDate(lastServiceEntry.date)} · {getTimeStarted(lastServiceEntry)}–{getTimeFinished(lastServiceEntry)}
                 </Text>
               </View>
             )}

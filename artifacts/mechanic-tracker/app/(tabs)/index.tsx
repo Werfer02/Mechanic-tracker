@@ -9,6 +9,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { getJobSortTime } from '@/utils/jobTime';
 
 export default function JobsScreen() {
   const colors = useColors();
@@ -16,8 +17,8 @@ export default function JobsScreen() {
   const insets = useSafeAreaInsets();
 
   const sorted = [...jobs].sort((a, b) => {
-    const da = new Date(`${a.date}T${a.time}`).getTime();
-    const db = new Date(`${b.date}T${b.time}`).getTime();
+    const da = getJobSortTime(a);
+    const db = getJobSortTime(b);
     return db - da;
   });
 

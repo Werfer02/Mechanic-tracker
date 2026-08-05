@@ -15,6 +15,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { enqueuePhotos } from '@/utils/photoUploadQueue';
+import { getTimeFinished, getTimeStarted } from '@/utils/jobTime';
 
 const SERVER_URL_KEY = 'mechanic_server_url';
 
@@ -68,11 +69,13 @@ export default function AddJobScreen() {
     registration: registrationParam,
     make: makeParam,
     model: modelParam,
+    owner: ownerParam,
   } = useLocalSearchParams<{
     jobId?: string;
     registration?: string;
     make?: string;
     model?: string;
+    owner?: string;
   }>();
   const isEditMode = !!jobId;
   const editJob = isEditMode ? jobs.find(j => j.id === jobId) : undefined;
@@ -81,14 +84,17 @@ export default function AddJobScreen() {
     : '';
   const initialMake = typeof makeParam === 'string' ? makeParam : '';
   const initialModel = typeof modelParam === 'string' ? modelParam : '';
+  const initialOwner = typeof ownerParam === 'string' ? ownerParam : '';
   // Tracks whether save was completed so the beforeRemove guard is skipped
   const savedRef = React.useRef(false);
 
   const [registration, setRegistration] = useState(initialRegistration);
   const [make, setMake] = useState(initialMake);
   const [model, setModel] = useState(initialModel);
+  const [owner, setOwner] = useState(initialOwner);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState(nowTime());
+  const [timeStarted, setTimeStarted] = useState(nowTime());
+  const [timeFinished, setTimeFinished] = useState(nowTime());
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
   const [isService, setIsService] = useState(false);
@@ -100,7 +106,8 @@ export default function AddJobScreen() {
   const [photoBase64s, setPhotoBase64s] = useState<(string | null)[]>([]);
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showStartedPicker, setShowStartedPicker] = useState(false);
+  const [showFinishedPicker, setShowFinishedPicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Pre-fill all fields when opening in edit mode (jobs load async from storage)
@@ -112,9 +119,11 @@ export default function AddJobScreen() {
       setRegistration(editJob.vehicleRegistration);
       setMake(vehicle?.make ?? '');
       setModel(vehicle?.model ?? '');
+      setOwner(vehicle?.owner ?? '');
       const [y, m, d] = editJob.date.split('-').map(Number);
       setSelectedDate(new Date(y ?? 2024, (m ?? 1) - 1, d ?? 1));
-      setSelectedTime(editJob.time);
+      setTimeStarted(getTimeStarted(editJob));
+      setTimeFinished(getTimeFinished(editJob));
       setDescription(editJob.description);
       setNotes(editJob.notes);
       setIsService(editJob.isService);
@@ -136,6 +145,7 @@ export default function AddJobScreen() {
     setRegistration(v.registration);
     setMake(v.make);
     setModel(v.model);
+    setOwner(v.owner ?? '');
     setShowSuggestions(false);
   };
 
@@ -143,7 +153,8 @@ export default function AddJobScreen() {
   const isDirty = isEditMode
     ? (initializedRef.current && editJob != null && (
         toISODate(selectedDate) !== editJob.date ||
-        selectedTime !== editJob.time ||
+        timeStarted !== getTimeStarted(editJob) ||
+        timeFinished !== getTimeFinished(editJob) ||
         description.trim() !== editJob.description ||
         notes.trim() !== editJob.notes ||
         isService !== editJob.isService ||
@@ -154,6 +165,7 @@ export default function AddJobScreen() {
         regUpper !== initialRegistration ||
         make.trim() !== initialMake.trim() ||
         model.trim() !== initialModel.trim() ||
+        owner.trim() !== initialOwner.trim() ||
         description.trim().length > 0 ||
         notes.trim().length > 0 ||
         photos.length > 0
@@ -197,7 +209,8 @@ export default function AddJobScreen() {
     if (isEditMode && jobId && editJob) {
       updateJob(jobId, {
         date: toISODate(selectedDate),
-        time: selectedTime,
+        timeStarted,
+        timeFinished,
         description: description.trim(),
         notes: notes.trim(),
         isService,
@@ -216,11 +229,12 @@ export default function AddJobScreen() {
           .map(p => ({ jobId, uri: p.uri, base64: p.base64, mimeType: 'image/jpeg' }))
       );
     } else {
-      upsertVehicle(regUpper, make.trim(), model.trim(), mileage);
+      upsertVehicle(regUpper, make.trim(), model.trim(), mileage, owner.trim());
       const newJob = addJob({
         vehicleRegistration: regUpper,
         date: toISODate(selectedDate),
-        time: selectedTime,
+        timeStarted,
+        timeFinished,
         description: description.trim(),
         notes: notes.trim(),
         isService,
@@ -467,6 +481,7 @@ export default function AddJobScreen() {
 
         {/* Make & Model — hidden in edit mode (vehicle details edited separately) */}
         {!isEditMode && (
+          <>
           <View style={s.row}>
             <View style={[s.section, { flex: 1 }]}>
               <Text style={s.label}>Make (optional)</Text>
@@ -491,22 +506,45 @@ export default function AddJobScreen() {
               />
             </View>
           </View>
+          <View style={s.section}>
+            <Text style={s.label}>Owner (optional)</Text>
+            <TextInput
+              style={s.input}
+              value={owner}
+              onChangeText={setOwner}
+              placeholder="e.g. Alex Smith"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+            />
+          </View>
+          </>
         )}
 
-        {/* Date & Time */}
-        <View style={s.row}>
-          <View style={[s.section, { flex: 1 }]}>
+        {/* Date */}
+        <View style={s.section}>
+          <View style={s.section}>
             <Text style={s.label}>Date</Text>
             <TouchableOpacity style={s.pickerBtn} onPress={() => setShowDatePicker(true)}>
               <Feather name="calendar" size={17} color={colors.primary} />
               <Text style={s.pickerText}>{formatDisplayDate(selectedDate)}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Time started & finished */}
+        <View style={s.row}>
           <View style={[s.section, { flex: 1 }]}>
-            <Text style={s.label}>Time</Text>
-            <TouchableOpacity style={s.pickerBtn} onPress={() => setShowTimePicker(true)}>
+            <Text style={s.label}>Time started</Text>
+            <TouchableOpacity style={s.pickerBtn} onPress={() => setShowStartedPicker(true)}>
               <Feather name="clock" size={17} color={colors.primary} />
-              <Text style={s.pickerText}>{selectedTime}</Text>
+              <Text style={s.pickerText}>{timeStarted}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[s.section, { flex: 1 }]}>
+            <Text style={s.label}>Time finished</Text>
+            <TouchableOpacity style={s.pickerBtn} onPress={() => setShowFinishedPicker(true)}>
+              <Feather name="clock" size={17} color={colors.primary} />
+              <Text style={s.pickerText}>{timeFinished}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -626,10 +664,16 @@ export default function AddJobScreen() {
         onCancel={() => setShowDatePicker(false)}
       />
       <TimePickerModal
-        visible={showTimePicker}
-        value={selectedTime}
-        onConfirm={t => { setSelectedTime(t); setShowTimePicker(false); }}
-        onCancel={() => setShowTimePicker(false)}
+        visible={showStartedPicker}
+        value={timeStarted}
+        onConfirm={t => { setTimeStarted(t); setShowStartedPicker(false); }}
+        onCancel={() => setShowStartedPicker(false)}
+      />
+      <TimePickerModal
+        visible={showFinishedPicker}
+        value={timeFinished}
+        onConfirm={t => { setTimeFinished(t); setShowFinishedPicker(false); }}
+        onCancel={() => setShowFinishedPicker(false)}
       />
     </View>
   );

@@ -6,6 +6,7 @@ export interface Vehicle {
   registration: string;
   make: string;
   model: string;
+  owner?: string;
   mileage?: number;
   createdAt: string;
   _deleted?: boolean;
@@ -16,7 +17,9 @@ export interface Job {
   id: string;
   vehicleRegistration: string;
   date: string; // YYYY-MM-DD
-  time: string; // HH:mm
+  timeStarted?: string; // HH:mm
+  timeFinished?: string; // HH:mm
+  time?: string; // Legacy HH:mm value from older records
   description: string;
   notes: string;
   isService: boolean;
@@ -38,7 +41,7 @@ interface TrackerContextType {
   addJob: (job: Omit<Job, 'id' | 'createdAt'>) => Job;
   updateJob: (id: string, changes: Partial<Omit<Job, 'id' | 'vehicleRegistration' | 'createdAt'>>) => void;
   deleteJob: (id: string) => void;
-  upsertVehicle: (registration: string, make?: string, model?: string, mileage?: number) => Vehicle;
+  upsertVehicle: (registration: string, make?: string, model?: string, mileage?: number, owner?: string) => Vehicle;
   deleteVehicle: (registration: string) => void;
   getJobsForVehicle: (registration: string) => Job[];
   getLastService: (registration: string) => Job | null;
@@ -122,13 +125,13 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const upsertVehicle = useCallback((registration: string, make = '', model = '', mileage?: number): Vehicle => {
+  const upsertVehicle = useCallback((registration: string, make = '', model = '', mileage?: number, owner?: string): Vehicle => {
     const reg = registration.toUpperCase().replace(/[^A-Z0-9]/g, '');
     let existing: Vehicle | undefined;
     setVehicles(prev => {
       existing = prev.find(v => v.registration === reg);
       if (existing) {
-        // Un-delete if previously deleted, and optionally update make/model/mileage
+        // Un-delete if previously deleted, and optionally update make/model/owner/mileage
         const updated = prev.map(v =>
           v.registration === reg
             ? {
@@ -136,6 +139,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
                 _deleted: undefined,
                 make: make || v.make,
                 model: model || v.model,
+                ...(owner !== undefined ? { owner: owner || undefined } : { owner: v.owner }),
                 ...(mileage !== undefined ? { mileage } : {}),
               }
             : v
@@ -149,6 +153,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         registration: reg,
         make,
         model,
+        ...(owner ? { owner } : {}),
         ...(mileage !== undefined ? { mileage } : {}),
         createdAt: new Date().toISOString(),
       };
@@ -158,7 +163,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
     // Return synchronously — caller may need it immediately
-    return existing ?? { id: generateId(), registration: reg, make, model, createdAt: new Date().toISOString() };
+    return existing ?? { id: generateId(), registration: reg, make, model, ...(owner ? { owner } : {}), createdAt: new Date().toISOString() };
   }, []);
 
   const deleteVehicle = useCallback((registration: string) => {
@@ -179,8 +184,8 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     return jobs
       .filter(j => j.vehicleRegistration === registration && !j._deleted)
       .sort((a, b) => {
-        const da = new Date(`${a.date}T${a.time}`).getTime();
-        const db = new Date(`${b.date}T${b.time}`).getTime();
+        const da = new Date(`${a.date}T${a.timeStarted ?? a.time ?? ''}`).getTime();
+        const db = new Date(`${b.date}T${b.timeStarted ?? b.time ?? ''}`).getTime();
         return db - da;
       });
   }, [jobs]);
@@ -189,8 +194,8 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     const vehicleJobs = jobs.filter(j => j.vehicleRegistration === registration && !j._deleted);
     if (!vehicleJobs.length) return null;
     return vehicleJobs.reduce((latest, job) => {
-      const jd = new Date(`${job.date}T${job.time}`).getTime();
-      const ld = new Date(`${latest.date}T${latest.time}`).getTime();
+      const jd = new Date(`${job.date}T${job.timeStarted ?? job.time ?? ''}`).getTime();
+      const ld = new Date(`${latest.date}T${latest.timeStarted ?? latest.time ?? ''}`).getTime();
       return jd > ld ? job : latest;
     });
   }, [jobs]);
@@ -199,8 +204,8 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     const serviceJobs = jobs.filter(j => j.vehicleRegistration === registration && j.isService && !j._deleted);
     if (!serviceJobs.length) return null;
     return serviceJobs.reduce((latest, job) => {
-      const jd = new Date(`${job.date}T${job.time}`).getTime();
-      const ld = new Date(`${latest.date}T${latest.time}`).getTime();
+      const jd = new Date(`${job.date}T${job.timeStarted ?? job.time ?? ''}`).getTime();
+      const ld = new Date(`${latest.date}T${latest.timeStarted ?? latest.time ?? ''}`).getTime();
       return jd > ld ? job : latest;
     });
   }, [jobs]);
