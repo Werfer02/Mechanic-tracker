@@ -49,6 +49,14 @@ function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time
   return `${hours} hr ${remainingMinutes} min`;
 }
 
+function formatJobTimeSummary(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
+  const started = job.timeStarted ?? job.time ?? '';
+  const finished = job.timeFinished ?? job.timeStarted ?? job.time ?? '';
+  return started && started === finished
+    ? started
+    : `Time taken ${formatJobDuration(job)}`;
+}
+
 export default function WorkshopView() {
   const { 
     syncCode, 
@@ -302,7 +310,7 @@ export default function WorkshopView() {
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-4 h-4 text-primary" />
                           <span className="font-mono">
-                             Time taken {formatJobDuration(job)}
+                             {formatJobTimeSummary(job)}
                           </span>
                         </div>
                       </div>

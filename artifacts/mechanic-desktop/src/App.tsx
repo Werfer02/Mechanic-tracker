@@ -86,6 +86,14 @@ function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time
   return `${hours} hr ${remainingMinutes} min`;
 }
 
+function formatJobTimeSummary(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
+  const started = getTimeStarted(job);
+  const finished = getTimeFinished(job);
+  return started && started === finished
+    ? started
+    : `Time taken ${formatJobDuration(job)}`;
+}
+
 const LS_VEHICLES  = 'mechanic_desktop_vehicles';
 const LS_JOBS      = 'mechanic_desktop_jobs';
 const LS_SYNC_CODE = 'mechanic_desktop_sync_code';
@@ -1269,7 +1277,7 @@ function JobCard({ job, onDelete, onEdit, serverUrl }: { job: Job; onDelete: () 
         <div className="min-w-[90px] text-right shrink-0">
           <div className="text-xs text-muted-foreground">{dateStr}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            Time taken {formatJobDuration(job)}
+            {formatJobTimeSummary(job)}
           </div>
         </div>
         <div className="w-px self-stretch bg-border" />

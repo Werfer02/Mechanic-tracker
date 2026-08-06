@@ -43,3 +43,11 @@ export function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' 
   if (remainingMinutes === 0) return `${hours} hr`;
   return `${hours} hr ${remainingMinutes} min`;
 }
+
+export function formatJobTimeSummary(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>): string {
+  const started = getTimeStarted(job);
+  const finished = getTimeFinished(job);
+  return started && started === finished
+    ? started
+    : `Time taken ${formatJobDuration(job)}`;
+}
