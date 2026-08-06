@@ -60,6 +60,30 @@ function getTimeFinished(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>
   return job.timeFinished ?? job.timeStarted ?? job.time ?? '';
 }
 
+function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
+  const started = getTimeStarted(job);
+  const finished = getTimeFinished(job);
+  const [startedHours, startedMinutes] = started.split(':').map(Number);
+  const [finishedHours, finishedMinutes] = finished.split(':').map(Number);
+
+  if (
+    !Number.isFinite(startedHours) || !Number.isFinite(startedMinutes) ||
+    !Number.isFinite(finishedHours) || !Number.isFinite(finishedMinutes)
+  ) {
+    return '0 min';
+  }
+
+  const startTotal = startedHours * 60 + startedMinutes;
+  const finishTotal = finishedHours * 60 + finishedMinutes;
+  const minutes = (finishTotal - startTotal + 24 * 60) % (24 * 60);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) return `${remainingMinutes} min`;
+  if (remainingMinutes === 0) return `${hours} hr`;
+  return `${hours} hr ${remainingMinutes} min`;
+}
+
 const LS_VEHICLES  = 'mechanic_desktop_vehicles';
 const LS_JOBS      = 'mechanic_desktop_jobs';
 const LS_SYNC_CODE = 'mechanic_desktop_sync_code';
@@ -1243,7 +1267,7 @@ function JobCard({ job, onDelete, onEdit, serverUrl }: { job: Job; onDelete: () 
         <div className="min-w-[90px] text-right shrink-0">
           <div className="text-xs text-muted-foreground">{dateStr}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            Started {getTimeStarted(job)} · Finished {getTimeFinished(job)}
+            Time taken {formatJobDuration(job)}
           </div>
         </div>
         <div className="w-px self-stretch bg-border" />

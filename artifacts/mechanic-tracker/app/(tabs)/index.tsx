@@ -86,7 +86,12 @@ export default function JobsScreen() {
         extraData={colors}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <JobCard job={item} onDelete={deleteJob} showVehicle />
+           <JobCard
+             job={item}
+             onDelete={deleteJob}
+             onEdit={id => router.push({ pathname: '/add-job', params: { jobId: id } })}
+             showVehicle
+           />
         )}
         ListEmptyComponent={
           <View style={s.empty}>

@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { Job } from '@/context/TrackerContext';
 import ConfirmModal from '@/components/ConfirmModal';
-import { getTimeFinished, getTimeStarted } from '@/utils/jobTime';
+import { formatJobDuration } from '@/utils/jobTime';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -95,7 +95,7 @@ export default function JobCard({ job, onDelete, onEdit, showVehicle = true }: P
               <Text style={s.dateText}>{formatDate(job.date)}</Text>
               <View style={s.dot} />
               <Feather name="clock" size={13} color={colors.mutedForeground} />
-              <Text style={s.dateText}>Started {getTimeStarted(job)} · Finished {getTimeFinished(job)}</Text>
+              <Text style={s.dateText}>Time taken {formatJobDuration(job)}</Text>
             </View>
             <View style={s.badgesRow}>
               {showVehicle && (

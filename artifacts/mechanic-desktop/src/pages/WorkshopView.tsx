@@ -23,6 +23,30 @@ import { AddJobDialog } from '../components/AddJobDialog';
 import { AddVehicleDialog } from '../components/AddVehicleDialog';
 import { toast } from 'sonner';
 
+function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
+  const started = job.timeStarted ?? job.time ?? '';
+  const finished = job.timeFinished ?? job.timeStarted ?? job.time ?? '';
+  const [startedHours, startedMinutes] = started.split(':').map(Number);
+  const [finishedHours, finishedMinutes] = finished.split(':').map(Number);
+
+  if (
+    !Number.isFinite(startedHours) || !Number.isFinite(startedMinutes) ||
+    !Number.isFinite(finishedHours) || !Number.isFinite(finishedMinutes)
+  ) {
+    return '0 min';
+  }
+
+  const startTotal = startedHours * 60 + startedMinutes;
+  const finishTotal = finishedHours * 60 + finishedMinutes;
+  const minutes = (finishTotal - startTotal + 24 * 60) % (24 * 60);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) return `${remainingMinutes} min`;
+  if (remainingMinutes === 0) return `${hours} hr`;
+  return `${hours} hr ${remainingMinutes} min`;
+}
+
 export default function WorkshopView() {
   const { 
     syncCode, 
@@ -276,7 +300,7 @@ export default function WorkshopView() {
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-4 h-4 text-primary" />
                           <span className="font-mono">
-                            Started {job.timeStarted ?? job.time ?? '—'} · Finished {job.timeFinished ?? job.timeStarted ?? job.time ?? '—'}
+                             Time taken {formatJobDuration(job)}
                           </span>
                         </div>
                       </div>

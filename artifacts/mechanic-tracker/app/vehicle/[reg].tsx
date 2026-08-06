@@ -11,7 +11,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { getTimeFinished, getTimeStarted } from '@/utils/jobTime';
+import { formatJobDuration } from '@/utils/jobTime';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -414,7 +414,7 @@ export default function VehicleDetailScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[s.statLabel, { color: colors.primary }]}>Last Full Service</Text>
                 <Text style={[s.statValue, { fontSize: 15, color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>
-                  {formatDate(lastServiceEntry.date)} · {getTimeStarted(lastServiceEntry)}–{getTimeFinished(lastServiceEntry)}
+                  {formatDate(lastServiceEntry.date)} · {formatJobDuration(lastServiceEntry)}
                 </Text>
                 {!!lastServiceEntry.description && (
                   <Text numberOfLines={1} style={{ fontSize: 12, color: colors.primary + 'AA',
