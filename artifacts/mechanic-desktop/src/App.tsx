@@ -91,7 +91,7 @@ function formatJobTimeSummary(job: Pick<Job, 'timeStarted' | 'timeFinished' | 't
   const finished = getTimeFinished(job);
   return started && started === finished
     ? started
-    : `Time taken ${formatJobDuration(job)}`;
+    : `Time taken: ${formatJobDuration(job)}`;
 }
 
 const LS_VEHICLES  = 'mechanic_desktop_vehicles';

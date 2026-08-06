@@ -54,7 +54,7 @@ function formatJobTimeSummary(job: Pick<Job, 'timeStarted' | 'timeFinished' | 't
   const finished = job.timeFinished ?? job.timeStarted ?? job.time ?? '';
   return started && started === finished
     ? started
-    : `Time taken ${formatJobDuration(job)}`;
+    : `Time taken: ${formatJobDuration(job)}`;
 }
 
 export default function WorkshopView() {
