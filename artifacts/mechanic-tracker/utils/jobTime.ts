@@ -31,6 +31,10 @@ export function getJobDurationMinutes(job: Pick<Job, 'timeStarted' | 'timeFinish
 }
 
 export function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>): string {
+  const started = getTimeStarted(job);
+  const finished = getTimeFinished(job);
+  if (started && started === finished) return started;
+
   const minutes = getJobDurationMinutes(job);
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;

@@ -11,4 +11,4 @@ New owner values are normalized to uppercase at input/save boundaries, but legac
 
 **Why:** The mobile and desktop apps share existing persisted and synced records, so changing the data shape must not make older records disappear or render blank.
 
-**How to apply:** Keep compatibility fallbacks at duration display, sorting, and edit-form initialization boundaries. Show elapsed time in job overviews while keeping explicit started/finished fields in edit forms. When saving a new or edited job, write the two explicit time fields. Offer existing owners as case-insensitive autocomplete suggestions.
+**How to apply:** Keep compatibility fallbacks at duration display, sorting, and edit-form initialization boundaries. Show elapsed time in job overviews, except display the single time when started and finished match, while keeping explicit started/finished fields in edit forms. When saving a new or edited job, write the two explicit time fields. Offer existing owners as case-insensitive autocomplete suggestions.

@@ -63,6 +63,8 @@ function getTimeFinished(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>
 function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
   const started = getTimeStarted(job);
   const finished = getTimeFinished(job);
+  if (started && started === finished) return started;
+
   const [startedHours, startedMinutes] = started.split(':').map(Number);
   const [finishedHours, finishedMinutes] = finished.split(':').map(Number);
 

@@ -26,6 +26,8 @@ import { toast } from 'sonner';
 function formatJobDuration(job: Pick<Job, 'timeStarted' | 'timeFinished' | 'time'>) {
   const started = job.timeStarted ?? job.time ?? '';
   const finished = job.timeFinished ?? job.timeStarted ?? job.time ?? '';
+  if (started && started === finished) return started;
+
   const [startedHours, startedMinutes] = started.split(':').map(Number);
   const [finishedHours, finishedMinutes] = finished.split(':').map(Number);
 
