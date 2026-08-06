@@ -161,17 +161,19 @@ function useDesktopStore() {
       if (existing) {
         const updated = prev.map(v =>
           v.registration === r
-             ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model, ...(owner !== undefined ? { owner: owner || undefined } : { owner: v.owner }), ...(mileage !== undefined ? { mileage } : {}) }
+             ? { ...v, _deleted: undefined, make: make || v.make, model: model || v.model, ...(owner !== undefined ? { owner: owner.trim().toUpperCase() || undefined } : { owner: v.owner }), ...(mileage !== undefined ? { mileage } : {}) }
             : v
         );
         result = updated.find(v => v.registration === r);
         return updated;
       }
-      const newV: Vehicle = { id: genId(), registration: r, make, model, ...(owner ? { owner } : {}), ...(mileage !== undefined ? { mileage } : {}), createdAt: new Date().toISOString() };
+      const normalizedOwner = owner?.trim().toUpperCase();
+      const newV: Vehicle = { id: genId(), registration: r, make, model, ...(normalizedOwner ? { owner: normalizedOwner } : {}), ...(mileage !== undefined ? { mileage } : {}), createdAt: new Date().toISOString() };
       result = newV;
       return [...prev, newV];
     });
-    return result ?? { id: genId(), registration: r, make, model, ...(owner ? { owner } : {}), createdAt: new Date().toISOString() };
+    const normalizedOwner = owner?.trim().toUpperCase();
+    return result ?? { id: genId(), registration: r, make, model, ...(normalizedOwner ? { owner: normalizedOwner } : {}), createdAt: new Date().toISOString() };
   }, []);
 
   const addJob = useCallback((data: Omit<Job, 'id' | 'createdAt'>): Job => {
@@ -523,7 +525,8 @@ function ConfirmModal({ title, message, confirmLabel = 'Delete', danger = true, 
 
 // ── AddVehicleModal ───────────────────────────────────────────────────────────
 
-function AddVehicleModal({ onAdd, onClose }: {
+function AddVehicleModal({ vehicles, onAdd, onClose }: {
+  vehicles: Vehicle[];
   onAdd: (reg: string, make: string, model: string, owner: string) => void;
   onClose: () => void;
 }) {
@@ -532,12 +535,15 @@ function AddVehicleModal({ onAdd, onClose }: {
   const [model, setModel] = useState('');
   const [owner, setOwner] = useState('');
   const [error, setError] = useState('');
+  const ownerSuggestions = Array.from(new Set(
+    vehicles.map(v => v.owner?.trim()).filter((value): value is string => !!value)
+  )).filter(value => value.toLowerCase().includes(owner.trim().toLowerCase())).slice(0, 5);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const r = reg.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!r) { setError('Registration is required'); return; }
-    onAdd(r, make.trim(), model.trim(), owner.trim());
+    onAdd(r, make.trim(), model.trim(), owner.trim().toUpperCase());
   }
 
   return (
@@ -561,7 +567,18 @@ function AddVehicleModal({ onAdd, onClose }: {
           </div>
           <div>
             <FieldLabel>Owner (optional)</FieldLabel>
-            <Input placeholder="e.g. Alex Smith" value={owner} onChange={e => setOwner(e.target.value)} />
+            <div className="relative">
+              <Input placeholder="e.g. Alex Smith" value={owner} onChange={e => setOwner(e.target.value.toUpperCase())} />
+              {owner.trim() && ownerSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-lg">
+                  {ownerSuggestions.map(suggestion => (
+                    <button key={suggestion} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-secondary" onClick={() => setOwner(suggestion.toUpperCase())}>
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-3 pt-1">
@@ -601,12 +618,15 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
   const reg = regInput.toUpperCase().replace(/[^A-Z0-9]/g, '');
   const existingVehicle = vehicles.find(v => v.registration === reg);
   const isNewVehicle = reg.length > 0 && !existingVehicle;
+  const ownerSuggestions = Array.from(new Set(
+    vehicles.map(v => v.owner?.trim()).filter((value): value is string => !!value)
+  )).filter(value => value.toLowerCase().includes(owner.trim().toLowerCase())).slice(0, 5);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!reg || !description.trim()) return;
     const mileage = mileageInput.trim() ? parseInt(mileageInput.trim(), 10) : undefined;
-    onAdd(reg, make.trim(), model.trim(), owner.trim(), {
+    onAdd(reg, make.trim(), model.trim(), owner.trim().toUpperCase(), {
       date, timeStarted, timeFinished,
       description: description.trim(),
       notes: notes.trim(),
@@ -653,7 +673,18 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
                       <Input placeholder="Make (optional)" value={make} onChange={e => setMake(e.target.value)} />
                       <Input placeholder="Model (optional)" value={model} onChange={e => setModel(e.target.value)} />
                     </div>
-                    <Input placeholder="Owner (optional)" value={owner} onChange={e => setOwner(e.target.value)} />
+                    <div className="relative">
+                      <Input placeholder="Owner (optional)" value={owner} onChange={e => setOwner(e.target.value.toUpperCase())} />
+                      {owner.trim() && ownerSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-lg">
+                          {ownerSuggestions.map(suggestion => (
+                            <button key={suggestion} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-secondary" onClick={() => setOwner(suggestion.toUpperCase())}>
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     {isNewVehicle && (
                       <p className="text-xs text-muted-foreground">
                         Vehicle <strong className="text-foreground">{reg}</strong> will be created automatically.
@@ -677,7 +708,18 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
                       <Input placeholder="Make (optional)" value={make} onChange={e => setMake(e.target.value)} />
                       <Input placeholder="Model (optional)" value={model} onChange={e => setModel(e.target.value)} />
                     </div>
-                    <Input placeholder="Owner (optional)" value={owner} onChange={e => setOwner(e.target.value)} />
+                    <div className="relative">
+                      <Input placeholder="Owner (optional)" value={owner} onChange={e => setOwner(e.target.value.toUpperCase())} />
+                      {owner.trim() && ownerSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-lg">
+                          {ownerSuggestions.map(suggestion => (
+                            <button key={suggestion} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-secondary" onClick={() => setOwner(suggestion.toUpperCase())}>
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -781,7 +823,7 @@ function EditVehicleModal({ vehicle, onSave, onClose }: {
           </div>
           <div>
             <FieldLabel>Owner (optional)</FieldLabel>
-            <Input placeholder="e.g. Alex Smith" value={owner} onChange={e => setOwner(e.target.value)} />
+            <Input placeholder="e.g. Alex Smith" value={owner} onChange={e => setOwner(e.target.value.toUpperCase())} />
           </div>
           <div>
             <FieldLabel>Mileage (optional)</FieldLabel>
@@ -1496,7 +1538,7 @@ function WorkshopView() {
                       return next;
                     })}
                   >
-                    <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground">
                       <span className="text-primary">{collapsed ? '▸' : '▾'}</span>
                       {owner}
                     </span>
@@ -1620,7 +1662,7 @@ function WorkshopView() {
 
       {/* ── Modals ── */}
       {showAddVehicle && (
-        <AddVehicleModal onAdd={handleAddVehicle} onClose={() => setShowAddVehicle(false)} />
+        <AddVehicleModal vehicles={vehicles} onAdd={handleAddVehicle} onClose={() => setShowAddVehicle(false)} />
       )}
       {showAddJob && (
         <AddJobModal

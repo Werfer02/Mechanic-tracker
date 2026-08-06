@@ -7,6 +7,8 @@ Vehicle owners are optional. Vehicles from older local or synced data may have n
 
 Jobs now use optional `timeStarted` and `timeFinished` fields. Legacy jobs may only contain `time`; display that value as both started and finished, and sort using it.
 
+New owner values are normalized to uppercase at input/save boundaries, but legacy owner values keep their stored casing when displayed so differently-cased historical records remain distinguishable.
+
 **Why:** The mobile and desktop apps share existing persisted and synced records, so changing the data shape must not make older records disappear or render blank.
 
-**How to apply:** Keep compatibility fallbacks at display, sorting, and edit-form initialization boundaries. When saving a new or edited job, write the two explicit time fields.
+**How to apply:** Keep compatibility fallbacks at display, sorting, and edit-form initialization boundaries. When saving a new or edited job, write the two explicit time fields. Offer existing owners as case-insensitive autocomplete suggestions.

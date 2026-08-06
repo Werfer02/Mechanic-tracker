@@ -139,7 +139,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
                 _deleted: undefined,
                 make: make || v.make,
                 model: model || v.model,
-                ...(owner !== undefined ? { owner: owner || undefined } : { owner: v.owner }),
+                ...(owner !== undefined ? { owner: owner.trim().toUpperCase() || undefined } : { owner: v.owner }),
                 ...(mileage !== undefined ? { mileage } : {}),
               }
             : v
@@ -148,12 +148,13 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         existing = updated.find(v => v.registration === reg)!;
         return updated;
       }
+      const normalizedOwner = owner?.trim().toUpperCase();
       const newVehicle: Vehicle = {
         id: generateId(),
         registration: reg,
         make,
         model,
-        ...(owner ? { owner } : {}),
+        ...(normalizedOwner ? { owner: normalizedOwner } : {}),
         ...(mileage !== undefined ? { mileage } : {}),
         createdAt: new Date().toISOString(),
       };
@@ -163,7 +164,8 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
     // Return synchronously — caller may need it immediately
-    return existing ?? { id: generateId(), registration: reg, make, model, ...(owner ? { owner } : {}), createdAt: new Date().toISOString() };
+    const normalizedOwner = owner?.trim().toUpperCase();
+    return existing ?? { id: generateId(), registration: reg, make, model, ...(normalizedOwner ? { owner: normalizedOwner } : {}), createdAt: new Date().toISOString() };
   }, []);
 
   const deleteVehicle = useCallback((registration: string) => {

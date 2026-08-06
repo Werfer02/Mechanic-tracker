@@ -310,6 +310,7 @@ export default function WorkshopView() {
         open={isAddVehicleOpen}
         onOpenChange={setIsAddVehicleOpen}
         onAdd={addVehicle}
+        existingVehicles={vehicles}
       />
     </div>
   );

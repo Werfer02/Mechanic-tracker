@@ -200,8 +200,9 @@ function EditVehicleModal({ visible, make: initMake, model: initModel, owner: in
                   placeholder="e.g. Alex Smith"
                   placeholderTextColor={colors.mutedForeground}
                   value={owner}
-                  onChangeText={setOwner}
+                  onChangeText={value => setOwner(value.toUpperCase())}
                   returnKeyType="next"
+                  autoCapitalize="characters"
                 />
               </View>
               <View style={s.field}>

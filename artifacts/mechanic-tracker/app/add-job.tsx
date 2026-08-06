@@ -84,7 +84,7 @@ export default function AddJobScreen() {
     : '';
   const initialMake = typeof makeParam === 'string' ? makeParam : '';
   const initialModel = typeof modelParam === 'string' ? modelParam : '';
-  const initialOwner = typeof ownerParam === 'string' ? ownerParam : '';
+  const initialOwner = typeof ownerParam === 'string' ? ownerParam.toUpperCase() : '';
   // Tracks whether save was completed so the beforeRemove guard is skipped
   const savedRef = React.useRef(false);
 
@@ -119,7 +119,7 @@ export default function AddJobScreen() {
       setRegistration(editJob.vehicleRegistration);
       setMake(vehicle?.make ?? '');
       setModel(vehicle?.model ?? '');
-      setOwner(vehicle?.owner ?? '');
+      setOwner(vehicle?.owner?.toUpperCase() ?? '');
       const [y, m, d] = editJob.date.split('-').map(Number);
       setSelectedDate(new Date(y ?? 2024, (m ?? 1) - 1, d ?? 1));
       setTimeStarted(getTimeStarted(editJob));
@@ -140,12 +140,20 @@ export default function AddJobScreen() {
   const suggestions = vehicles.filter(v =>
     v.registration.includes(regUpper) && regUpper.length > 0 && v.registration !== regUpper
   ).slice(0, 5);
+  const ownerSuggestions = Array.from(new Set(
+    vehicles
+      .map(v => v.owner?.trim())
+      .filter((value): value is string => !!value)
+      .map(value => value.toUpperCase())
+  ))
+    .filter(value => value.includes(owner.trim().toUpperCase()))
+    .slice(0, 5);
 
   const selectSuggestion = (v: typeof vehicles[0]) => {
     setRegistration(v.registration);
     setMake(v.make);
     setModel(v.model);
-    setOwner(v.owner ?? '');
+    setOwner(v.owner?.toUpperCase() ?? '');
     setShowSuggestions(false);
   };
 
@@ -229,7 +237,7 @@ export default function AddJobScreen() {
           .map(p => ({ jobId, uri: p.uri, base64: p.base64, mimeType: 'image/jpeg' }))
       );
     } else {
-      upsertVehicle(regUpper, make.trim(), model.trim(), mileage, owner.trim());
+      upsertVehicle(regUpper, make.trim(), model.trim(), mileage, owner.trim().toUpperCase());
       const newJob = addJob({
         vehicleRegistration: regUpper,
         date: toISODate(selectedDate),
@@ -511,11 +519,25 @@ export default function AddJobScreen() {
             <TextInput
               style={s.input}
               value={owner}
-              onChangeText={setOwner}
+              onChangeText={value => setOwner(value.toUpperCase())}
               placeholder="e.g. Alex Smith"
               placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="words"
+              autoCapitalize="characters"
             />
+            {owner.trim().length > 0 && ownerSuggestions.length > 0 && (
+              <View style={s.suggestionsContainer}>
+                {ownerSuggestions.map((suggestion, i) => (
+                  <TouchableOpacity
+                    key={suggestion}
+                    style={[s.suggestionItem, i === ownerSuggestions.length - 1 && { borderBottomWidth: 0 }]}
+                    onPress={() => setOwner(suggestion)}
+                  >
+                    <Feather name="user" size={16} color={colors.primary} />
+                    <Text style={s.suggestionReg}>{suggestion}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
           </>
         )}

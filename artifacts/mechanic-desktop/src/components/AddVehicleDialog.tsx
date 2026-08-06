@@ -34,9 +34,10 @@ interface AddVehicleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (vehicle: Vehicle) => void;
+  existingVehicles?: Vehicle[];
 }
 
-export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialogProps) {
+export function AddVehicleDialog({ open, onOpenChange, onAdd, existingVehicles = [] }: AddVehicleDialogProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,7 +65,7 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
       registration: data.registration.toUpperCase().replace(/[^A-Z0-9]/g, ''),
       make: data.make,
       model: data.model,
-      owner: data.owner?.trim() || undefined,
+      owner: data.owner?.trim().toUpperCase() || undefined,
       createdAt: new Date().toISOString(),
     };
     onAdd(newVehicle);
@@ -103,9 +104,38 @@ export function AddVehicleDialog({ open, onOpenChange, onAdd }: AddVehicleDialog
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Owner (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Alex Smith" {...field} />
-                  </FormControl>
+                  <div className="relative">
+                    <FormControl>
+                      <Input
+                        placeholder="Alex Smith"
+                        {...field}
+                        onChange={e => field.onChange(e.target.value.toUpperCase())}
+                      />
+                    </FormControl>
+                    {(field.value ?? '').trim() && (
+                      (() => {
+                        const suggestions = Array.from(new Set(
+                          existingVehicles
+                            .map(vehicle => vehicle.owner?.trim())
+                            .filter((value): value is string => !!value)
+                        )).filter(value => value.toLowerCase().includes((field.value ?? '').trim().toLowerCase())).slice(0, 5);
+                        return suggestions.length > 0 ? (
+                          <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-lg">
+                            {suggestions.map(suggestion => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                className="block w-full px-3 py-2 text-left text-sm hover:bg-secondary"
+                                onClick={() => field.onChange(suggestion.toUpperCase())}
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()
+                    )}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
