@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -318,11 +318,10 @@ export default function SyncScreen() {
       };
       const json = JSON.stringify(backup, null, 2);
       const date = new Date().toISOString().slice(0, 10);
-      // cacheDirectory / documentDirectory are runtime constants not typed in v57
-      const FS = FileSystem as any;
-      const cacheDir: string = FS.cacheDirectory ?? FS.documentDirectory ?? '';
+      const cacheDir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '';
+      if (!cacheDir) throw new Error('File-system cache directory is unavailable');
       const uri = `${cacheDir}mechanic-backup-${date}.json`;
-      await FS.writeAsStringAsync(uri, json, { encoding: FS.EncodingType.UTF8 });
+      await FileSystem.writeAsStringAsync(uri, json, { encoding: FileSystem.EncodingType.UTF8 });
       await Sharing.shareAsync(uri, {
         mimeType: 'application/json',
         dialogTitle: 'Save your backup file',
@@ -341,7 +340,7 @@ export default function SyncScreen() {
       });
       if (result.canceled) return;
       const file = result.assets[0];
-      const text = await (FileSystem as any).readAsStringAsync(file.uri, { encoding: (FileSystem as any).EncodingType?.UTF8 ?? 'utf8' });
+      const text = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.UTF8 });
       const data = JSON.parse(text);
       if (!data.version || !Array.isArray(data.vehicles) || !Array.isArray(data.jobs)) {
         Alert.alert('Invalid file', 'This does not appear to be a valid Mechanic Tracker backup.');
