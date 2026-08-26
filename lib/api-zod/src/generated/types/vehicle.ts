@@ -12,5 +12,7 @@ export interface Vehicle {
   make: string;
   model: string;
   owner?: string;
+  /** @minimum 0 */
+  mileage?: number;
   createdAt: string;
 }

@@ -176,6 +176,7 @@ export default function AddJobScreen() {
         owner.trim() !== initialOwner.trim() ||
         description.trim().length > 0 ||
         notes.trim().length > 0 ||
+        mileageInput.trim().length > 0 ||
         photos.length > 0
       );
 

@@ -70,8 +70,18 @@ export default function JobCard({ job, onDelete, onEdit, showVehicle = true }: P
       borderWidth: 1,
       borderColor: '#22C55E55',
     },
+    mileageBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.secondary,
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
     regText: { fontSize: 13, color: colors.primary, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
     serviceText: { fontSize: 13, color: '#22C55E', fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+    mileageText: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
     deleteBtn: { padding: 4, marginLeft: 8 },
     desc: { fontSize: 15, color: colors.foreground, fontFamily: 'Inter_500Medium', lineHeight: 22 },
     notes: { fontSize: 13, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginTop: 6, lineHeight: 19 },
@@ -110,9 +120,9 @@ export default function JobCard({ job, onDelete, onEdit, showVehicle = true }: P
                   </Text>
                 </View>
               )}
-              {!job.isService && job.mileageAtService !== undefined && (
-                <View style={s.serviceBadge}>
-                  <Text style={s.serviceText}>
+              {job.mileageAtService !== undefined && (
+                <View style={s.mileageBadge}>
+                  <Text style={s.mileageText}>
                     {job.mileageAtService.toLocaleString()} km
                   </Text>
                 </View>

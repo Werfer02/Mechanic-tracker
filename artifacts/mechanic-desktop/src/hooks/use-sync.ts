@@ -82,12 +82,16 @@ export function useSync() {
     
     // Optimistic or direct push
     const newJobs = [...(roomData.jobs || []), newJob];
-    const vehicles = roomData.vehicles || [];
+    const vehicles = (roomData.vehicles || []).map(vehicle =>
+      vehicle.registration === newJob.vehicleRegistration && newJob.mileageAtService !== undefined
+        ? { ...vehicle, mileage: newJob.mileageAtService }
+        : vehicle,
+    );
     
     // Update local cache optimistically
     queryClient.setQueryData(getGetSyncRoomQueryKey(syncCode!), (old: any) => {
       if (!old) return old;
-      return { ...old, jobs: newJobs };
+      return { ...old, vehicles, jobs: newJobs };
     });
 
     await pushData(vehicles, newJobs);

@@ -1286,7 +1286,7 @@ function JobCard({ job, onDelete, onEdit, serverUrl }: { job: Job; onDelete: () 
                 Service
               </span>
             )}
-            {!job.isService && job.mileageAtService !== undefined && (
+            {job.mileageAtService !== undefined && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-muted-foreground border border-border">
                 {job.mileageAtService.toLocaleString()} km
               </span>
@@ -1433,6 +1433,7 @@ function WorkshopView() {
 
   const lastWork    = vehicleJobs[0] ?? null;
   const lastService = vehicleJobs.find(j => j.isService) ?? null;
+  const lastMileageJob = vehicleJobs.find(j => j.mileageAtService !== undefined) ?? null;
 
   function handleAddVehicle(reg: string, make: string, model: string, owner: string) {
     upsertVehicle(reg, make, model, undefined, owner);
@@ -1647,8 +1648,8 @@ function WorkshopView() {
                       {lastService && (
                         <span>Last service: <span className="font-medium" style={{ color: '#22C55E' }}>{fmtDate(lastService.date)}</span></span>
                       )}
-                      {lastService?.mileageAtService !== undefined && (
-                        <span>Service mileage: <span className="text-foreground">{lastService.mileageAtService.toLocaleString()} km</span></span>
+                      {lastMileageJob?.mileageAtService !== undefined && (
+                        <span>Last recorded mileage: <span className="text-foreground">{lastMileageJob.mileageAtService.toLocaleString()} km</span></span>
                       )}
                       {selectedVehicle.mileage !== undefined && (
                         <span>Current mileage: <span className="text-foreground">{selectedVehicle.mileage.toLocaleString()} km</span></span>

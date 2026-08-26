@@ -110,6 +110,7 @@ components:
         make:         { type: string }
         model:        { type: string }
         owner:        { type: string }
+        mileage:      { type: integer, minimum: 0 }
         createdAt:    { type: string }
 
     Job:

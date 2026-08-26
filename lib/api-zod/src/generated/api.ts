@@ -31,6 +31,8 @@ export const GetSyncRoomParams = zod.object({
   "code": zod.coerce.string()
 })
 
+export const getSyncRoomResponseVehiclesItemMileageMin = 0;
+
 export const getSyncRoomResponseJobsItemMileageAtServiceMin = 0;
 
 
@@ -42,6 +44,7 @@ export const GetSyncRoomResponse = zod.object({
   "make": zod.string(),
   "model": zod.string(),
   "owner": zod.string().optional(),
+  "mileage": zod.number().min(getSyncRoomResponseVehiclesItemMileageMin).optional(),
   "createdAt": zod.string()
 })),
   "jobs": zod.array(zod.object({
@@ -68,6 +71,8 @@ export const PushSyncRoomParams = zod.object({
   "code": zod.coerce.string()
 })
 
+export const pushSyncRoomBodyVehiclesItemMileageMin = 0;
+
 export const pushSyncRoomBodyJobsItemMileageAtServiceMin = 0;
 
 
@@ -79,6 +84,7 @@ export const PushSyncRoomBody = zod.object({
   "make": zod.string(),
   "model": zod.string(),
   "owner": zod.string().optional(),
+  "mileage": zod.number().min(pushSyncRoomBodyVehiclesItemMileageMin).optional(),
   "createdAt": zod.string()
 })),
   "jobs": zod.array(zod.object({
