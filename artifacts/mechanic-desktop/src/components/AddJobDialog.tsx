@@ -31,6 +31,7 @@ const formSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   notes: z.string().optional(),
   isService: z.boolean().default(false),
+  mileage: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -54,6 +55,7 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
       description: '',
       notes: '',
       isService: false,
+      mileage: '',
     },
   });
 
@@ -68,6 +70,7 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
         description: '',
         notes: '',
         isService: false,
+        mileage: '',
       });
     }
   }, [open, prefilledRegistration, form]);
@@ -82,6 +85,7 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
       description: data.description,
       notes: data.notes || '',
       isService: data.isService,
+      ...(data.mileage?.trim() ? { mileageAtService: parseInt(data.mileage, 10) } : {}),
       createdAt: new Date().toISOString(),
     };
     onAdd(newJob);
@@ -160,6 +164,19 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Input placeholder="Brake pad replacement" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="mileage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mileage (optional)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="e.g. 45000 km" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

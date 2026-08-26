@@ -106,7 +106,14 @@ export default function JobCard({ job, onDelete, onEdit, showVehicle = true }: P
               {job.isService && (
                 <View style={s.serviceBadge}>
                   <Text style={s.serviceText}>
-                    SERVICE{job.mileageAtService !== undefined ? ` · ${job.mileageAtService.toLocaleString()} km` : ''}
+                    SERVICE
+                  </Text>
+                </View>
+              )}
+              {!job.isService && job.mileageAtService !== undefined && (
+                <View style={s.serviceBadge}>
+                  <Text style={s.serviceText}>
+                    {job.mileageAtService.toLocaleString()} km
                   </Text>
                 </View>
               )}

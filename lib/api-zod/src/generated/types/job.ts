@@ -17,5 +17,10 @@ export interface Job {
   description: string;
   notes: string;
   isService: boolean;
+  /**
+     * Mileage recorded at this job, in km.
+     * @minimum 0
+     */
+  mileageAtService?: number;
   createdAt: string;
 }

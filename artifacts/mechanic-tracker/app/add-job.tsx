@@ -586,21 +586,19 @@ export default function AddJobScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Mileage at Service — only shown when Full Service is on */}
-        {isService && (
-          <View style={s.section}>
-            <Text style={s.label}>Mileage at Service (optional)</Text>
-            <TextInput
-              style={s.input}
-              value={mileageInput}
-              onChangeText={v => setMileageInput(v.replace(/[^0-9]/g, ''))}
-              placeholder="e.g. 45000 km"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="numeric"
-              returnKeyType="done"
-            />
-          </View>
-        )}
+        {/* Mileage */}
+        <View style={s.section}>
+          <Text style={s.label}>Mileage (optional)</Text>
+          <TextInput
+            style={s.input}
+            value={mileageInput}
+            onChangeText={v => setMileageInput(v.replace(/[^0-9]/g, ''))}
+            placeholder="e.g. 45000 km"
+            placeholderTextColor={colors.mutedForeground}
+            keyboardType="numeric"
+            returnKeyType="done"
+          />
+        </View>
 
         {/* Description */}
         <View style={s.section}>

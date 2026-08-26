@@ -125,6 +125,7 @@ components:
         description:         { type: string }
         notes:               { type: string }
         isService:           { type: boolean }
+        mileageAtService:    { type: integer, minimum: 0, description: "Mileage recorded at this job, in km." }
         createdAt:           { type: string }
 
     SyncRoomData:

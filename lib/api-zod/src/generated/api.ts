@@ -31,6 +31,10 @@ export const GetSyncRoomParams = zod.object({
   "code": zod.coerce.string()
 })
 
+export const getSyncRoomResponseJobsItemMileageAtServiceMin = 0;
+
+
+
 export const GetSyncRoomResponse = zod.object({
   "vehicles": zod.array(zod.object({
   "id": zod.string(),
@@ -50,6 +54,7 @@ export const GetSyncRoomResponse = zod.object({
   "description": zod.string(),
   "notes": zod.string(),
   "isService": zod.boolean(),
+  "mileageAtService": zod.number().min(getSyncRoomResponseJobsItemMileageAtServiceMin).optional().describe('Mileage recorded at this job, in km.'),
   "createdAt": zod.string()
 })),
   "updatedAt": zod.string()
@@ -62,6 +67,10 @@ export const GetSyncRoomResponse = zod.object({
 export const PushSyncRoomParams = zod.object({
   "code": zod.coerce.string()
 })
+
+export const pushSyncRoomBodyJobsItemMileageAtServiceMin = 0;
+
+
 
 export const PushSyncRoomBody = zod.object({
   "vehicles": zod.array(zod.object({
@@ -82,6 +91,7 @@ export const PushSyncRoomBody = zod.object({
   "description": zod.string(),
   "notes": zod.string(),
   "isService": zod.boolean(),
+  "mileageAtService": zod.number().min(pushSyncRoomBodyJobsItemMileageAtServiceMin).optional().describe('Mileage recorded at this job, in km.'),
   "createdAt": zod.string()
 }))
 })

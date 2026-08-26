@@ -793,19 +793,17 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
           {/* Full Service toggle */}
           <Toggle checked={isService} onChange={setIsService} label="Full Service" sub="Mark this job as a complete service" />
 
-          {/* Mileage at Service — only shown when Full Service is toggled */}
-          {isService && (
-            <div>
-              <FieldLabel>Mileage at Service (optional)</FieldLabel>
-              <Input
-                type="number"
-                placeholder="e.g. 45000 km"
-                value={mileageInput}
-                onChange={e => setMileageInput(e.target.value)}
-                min={0}
-              />
-            </div>
-          )}
+          {/* Mileage */}
+          <div>
+            <FieldLabel>Mileage (optional)</FieldLabel>
+            <Input
+              type="number"
+              placeholder="e.g. 45000 km"
+              value={mileageInput}
+              onChange={e => setMileageInput(e.target.value)}
+              min={0}
+            />
+          </div>
 
           <div className="flex gap-3 pt-1">
             <Btn variant="secondary" type="button" onClick={onClose} className="flex-1">Cancel</Btn>
@@ -975,19 +973,17 @@ function EditJobModal({ job, onSave, onClose }: {
             </div>
             {/* Full Service toggle */}
             <Toggle checked={isService} onChange={setIsService} label="Full Service" sub="Mark this job as a complete service" />
-            {/* Mileage at Service */}
-            {isService && (
-              <div>
-                <FieldLabel>Mileage at Service (optional)</FieldLabel>
-                <Input
-                  type="number"
-                  placeholder="e.g. 45000 km"
-                  value={mileageInput}
-                  onChange={e => setMileageInput(e.target.value)}
-                  min={0}
-                />
-              </div>
-            )}
+            {/* Mileage */}
+            <div>
+              <FieldLabel>Mileage (optional)</FieldLabel>
+              <Input
+                type="number"
+                placeholder="e.g. 45000 km"
+                value={mileageInput}
+                onChange={e => setMileageInput(e.target.value)}
+                min={0}
+              />
+            </div>
             <div className="flex gap-3 pt-1">
               <Btn variant="secondary" type="button" onClick={handleClose} className="flex-1">Cancel</Btn>
               <Btn variant="primary" type="submit" className="flex-1" disabled={!description.trim()}>Save Changes</Btn>
@@ -1287,7 +1283,12 @@ function JobCard({ job, onDelete, onEdit, serverUrl }: { job: Job; onDelete: () 
             {job.isService && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
                 style={{ background: 'hsl(142 71% 45% / 0.15)', color: '#22C55E', border: '1px solid hsl(142 71% 45% / 0.3)' }}>
-                Service{job.mileageAtService !== undefined ? ` · ${job.mileageAtService.toLocaleString()} km` : ''}
+                Service
+              </span>
+            )}
+            {!job.isService && job.mileageAtService !== undefined && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-muted-foreground border border-border">
+                {job.mileageAtService.toLocaleString()} km
               </span>
             )}
             {hasPhotos && (
@@ -1440,7 +1441,7 @@ function WorkshopView() {
   }
 
   function handleAddJob(reg: string, make: string, model: string, owner: string, jobData: Omit<Job, 'id' | 'createdAt' | 'vehicleRegistration'>) {
-    // Upsert vehicle — also updates mileage when a service with mileage is logged
+    // Upsert vehicle — also updates mileage when a job with mileage is logged
     upsertVehicle(reg, make, model, jobData.mileageAtService, owner);
     addJob({ ...jobData, vehicleRegistration: reg });
     setSelectedReg(reg);
@@ -1740,8 +1741,8 @@ function WorkshopView() {
           job={editingJob}
           onSave={(id, changes) => {
             updateJob(id, changes);
-            // Update vehicle mileage when a service mileage is edited
-            if (changes.isService && changes.mileageAtService !== undefined) {
+            // Update vehicle mileage when any job mileage is edited
+            if (changes.mileageAtService !== undefined) {
               upsertVehicle(editingJob.vehicleRegistration, '', '', changes.mileageAtService);
             }
             setEditingJob(null);

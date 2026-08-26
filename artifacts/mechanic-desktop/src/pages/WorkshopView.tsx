@@ -15,7 +15,8 @@ import {
   AlignLeft, 
   AlertCircle,
   CheckCircle2,
-  ServerCrash
+  ServerCrash,
+  Gauge
 } from 'lucide-react';
 import { Job, Vehicle } from '@workspace/api-client-react';
 import { UKNumberPlate } from '../components/UKNumberPlate';
@@ -296,6 +297,11 @@ export default function WorkshopView() {
                       {job.isService && (
                         <Badge className="bg-[#22C55E]/10 text-[#22C55E] hover:bg-[#22C55E]/20 border border-[#22C55E]/30 shrink-0">
                           <CheckCircle2 className="w-3 h-3 mr-1" /> SERVICE
+                        </Badge>
+                      )}
+                      {job.mileageAtService !== undefined && (
+                        <Badge variant="outline" className="shrink-0">
+                          <Gauge className="w-3 h-3 mr-1" /> {job.mileageAtService.toLocaleString()} km
                         </Badge>
                       )}
                     </CardHeader>
