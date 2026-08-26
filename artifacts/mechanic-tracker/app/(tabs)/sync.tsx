@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, Platform, ActivityIndicator, Modal, Alert,
+  ScrollView, Platform, ActivityIndicator, Modal, Alert, NativeModules,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -14,6 +14,16 @@ import { useColors } from '@/hooks/useColors';
 import { useTracker } from '@/context/TrackerContext';
 import { useSyncRoom } from '@/hooks/useSyncRoom';
 import { APP_VERSION } from '@/constants/version';
+
+interface DocumentSaverNativeModule {
+  createDocument(
+    fileName: string,
+    mimeType: string,
+    contents: string,
+  ): Promise<string | null>;
+}
+
+const documentSaver = NativeModules.DocumentSaver as DocumentSaverNativeModule | undefined;
 
 // ── Shared backup format ──────────────────────────────────────────────────────
 // version 1: { version, exportedAt, app, vehicles[], jobs[] }
@@ -318,9 +328,30 @@ export default function SyncScreen() {
       };
       const json = JSON.stringify(backup, null, 2);
       const date = new Date().toISOString().slice(0, 10);
+      const filename = `mechanic-backup-${date}.json`;
+
+      if (Platform.OS === 'android') {
+        if (!documentSaver) {
+          Alert.alert(
+            'Update required',
+            'Saving backups directly needs the latest Android app build. Install the updated build, then try again.',
+          );
+          return;
+        }
+        const savedUri = await documentSaver.createDocument(
+          filename,
+          'application/json',
+          json,
+        );
+        if (savedUri) {
+          Alert.alert('Backup saved', `${filename} was saved to your selected location.`);
+        }
+        return;
+      }
+
       const cacheDir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '';
       if (!cacheDir) throw new Error('File-system cache directory is unavailable');
-      const uri = `${cacheDir}mechanic-backup-${date}.json`;
+      const uri = `${cacheDir}${filename}`;
       await FileSystem.writeAsStringAsync(uri, json, { encoding: FileSystem.EncodingType.UTF8 });
       await Sharing.shareAsync(uri, {
         mimeType: 'application/json',
