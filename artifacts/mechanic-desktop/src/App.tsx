@@ -770,11 +770,11 @@ function AddJobModal({ vehicles, defaultReg, onAdd, onClose }: {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel>Time started</FieldLabel>
-              <Input type="time" value={timeStarted} onChange={e => setTimeStarted(e.target.value)} required />
+              <Input type="time" step={60} value={timeStarted} onChange={e => setTimeStarted(e.target.value)} required />
             </div>
             <div>
               <FieldLabel>Time finished</FieldLabel>
-              <Input type="time" value={timeFinished} onChange={e => setTimeFinished(e.target.value)} required />
+              <Input type="time" step={60} value={timeFinished} onChange={e => setTimeFinished(e.target.value)} required />
             </div>
           </div>
 
@@ -948,11 +948,11 @@ function EditJobModal({ job, onSave, onClose }: {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel>Time started</FieldLabel>
-                <Input type="time" value={timeStarted} onChange={e => setTimeStarted(e.target.value)} required />
+                <Input type="time" step={60} value={timeStarted} onChange={e => setTimeStarted(e.target.value)} required />
               </div>
               <div>
                 <FieldLabel>Time finished</FieldLabel>
-                <Input type="time" value={timeFinished} onChange={e => setTimeFinished(e.target.value)} required />
+                <Input type="time" step={60} value={timeFinished} onChange={e => setTimeFinished(e.target.value)} required />
               </div>
             </div>
             {/* Description */}

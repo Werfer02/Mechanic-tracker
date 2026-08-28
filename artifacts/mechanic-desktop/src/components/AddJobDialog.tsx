@@ -136,7 +136,7 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
                   <FormItem>
                     <FormLabel>Time started</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Input type="time" step={60} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -149,7 +149,7 @@ export function AddJobDialog({ open, onOpenChange, onAdd, vehicles, prefilledReg
                   <FormItem>
                     <FormLabel>Time finished</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Input type="time" step={60} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
