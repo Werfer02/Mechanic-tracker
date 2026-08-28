@@ -39,7 +39,7 @@ class DocumentSaverModule(
       return
     }
 
-    val activity = currentActivity
+    val activity = reactContext.currentActivity
     if (activity == null) {
       promise.reject("E_NO_ACTIVITY", "No Android activity is available to save the file.")
       return

@@ -3,3 +3,4 @@
 - [Standalone mobile network debugging](standalone-mobile-network-debug.md) — desktop-page reachability does not prove the API is reachable from a standalone APK
 - [Android app data restore](android-app-data-restore.md) — allowBackup can restore AsyncStorage jobs, vehicles, URL, and room code after reinstall
 - [Vehicle owners and job times](vehicle-owners-and-job-times.md) — owner is optional and legacy jobs must continue to display one old time as both start and finish
+- [Native Android bridge validation](native-android-bridge-validation.md) — generated source inspection is not enough; compile native modules in an Android SDK environment before delivery
