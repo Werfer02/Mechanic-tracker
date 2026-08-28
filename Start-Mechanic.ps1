@@ -1,13 +1,17 @@
 $ErrorActionPreference = "Stop"
 
-# Put this script in the Mechanic-tracker repository root.
+# Mechanic Tracker native Windows launcher
+# Matches the README's native development defaults:
+#   API:     3001
+#   Desktop: 5173
+# Docker uses 8080 for the desktop, but this script does not use Docker.
+
 $Root = $PSScriptRoot
 
 $ApiPort = 3001
-$WebPort = 5173
+$DesktopPort = 5173
 
 function Get-LanIPv4 {
-    # Prefer an active adapter that actually has a default gateway.
     $ip = Get-NetIPConfiguration |
         Where-Object {
             $_.NetAdapter.Status -eq "Up" -and
@@ -67,72 +71,84 @@ function Start-ServerWindow {
 }
 
 $LanIp = Get-LanIPv4
-$WebUrl = "http://${LanIp}:${WebPort}"
-$ApiLanUrl = "http://${LanIp}:${ApiPort}"
+
+# README-native URLs
+$ApiLocalUrl = "http://localhost:$ApiPort"
+$ApiLanUrl = "http://${LanIp}:$ApiPort"
+$DesktopUrl = "http://${LanIp}:$DesktopPort"
 
 Write-Host "Starting Mechanic Tracker..." -ForegroundColor Cyan
-Write-Host "LAN IP: $LanIp" -ForegroundColor Green
-Write-Host "Desktop: $WebUrl"
-Write-Host "API for mobile: $ApiLanUrl"
+Write-Host ""
+Write-Host "LAN IP:        $LanIp" -ForegroundColor Green
+Write-Host "Desktop:       $DesktopUrl"
+Write-Host "API local:     $ApiLocalUrl"
+Write-Host "API for phone: $ApiLanUrl"
+Write-Host ""
 
-# API
-# DATABASE_URL intentionally stays localhost because PostgreSQL is on this PC.
+# API server
+# PostgreSQL is on this same machine, so DATABASE_URL correctly stays localhost.
 if (-not (Test-Port -Port $ApiPort)) {
     $ApiCommand = @"
 `$Host.UI.RawUI.WindowTitle = 'Mechanic Tracker API'
 Set-Location -LiteralPath '$($Root.Replace("'", "''"))'
+
+`$env:PORT = '$ApiPort'
 `$env:DATABASE_URL = 'postgresql://mechanic:mechanic@localhost:5432/mechanic'
-`$env:PORT = '3001'
 `$env:SESSION_SECRET = 'local-mechanic-secret'
 `$env:NODE_ENV = 'development'
+
 pnpm --filter @workspace/api-server run start
 "@
 
     Start-ServerWindow -Command $ApiCommand
-    Write-Host "API starting..."
+    Write-Host "API starting on port $ApiPort..."
 }
 else {
-    Write-Host "API is already running."
+    Write-Host "API already running on port $ApiPort."
 }
 
-# Vite
-# API_TARGET stays localhost because the Vite proxy and API run on the same PC.
-# VITE_LAN_IP / VITE_API_URL are available to browser code if the QR generator needs them.
-if (-not (Test-Port -Port $WebPort)) {
-    $WebCommand = @"
+# Desktop Vite dev server
+# The Vite proxy talks to the API locally on the PC, exactly as described in README.
+if (-not (Test-Port -Port $DesktopPort)) {
+    $DesktopCommand = @"
 `$Host.UI.RawUI.WindowTitle = 'Mechanic Tracker Desktop'
 Set-Location -LiteralPath '$($Root.Replace("'", "''"))'
-`$env:PORT = '5173'
+
+`$env:PORT = '$DesktopPort'
 `$env:BASE_PATH = '/'
-`$env:API_TARGET = 'http://localhost:3001'
+`$env:API_TARGET = 'http://localhost:$ApiPort'
+
+# These are available to frontend code for QR/mobile sync if needed.
 `$env:VITE_LAN_IP = '$LanIp'
-`$env:VITE_API_URL = 'http://${LanIp}:3001'
+`$env:VITE_API_URL = 'http://${LanIp}:$ApiPort'
+
 pnpm --filter @workspace/mechanic-desktop run dev
 "@
 
-    Start-ServerWindow -Command $WebCommand
-    Write-Host "Desktop server starting..."
+    Start-ServerWindow -Command $DesktopCommand
+    Write-Host "Desktop starting on port $DesktopPort..."
 }
 else {
-    Write-Host "Desktop server is already running."
+    Write-Host "Desktop already running on port $DesktopPort."
 }
 
-Write-Host "Waiting for the web app..."
+Write-Host "Waiting for desktop..."
 
 $Ready = $false
-for ($i = 0; $i -lt 30; $i++) {
-    if (Test-Port -Port $WebPort) {
+for ($i = 0; $i -lt 40; $i++) {
+    if (Test-Port -Port $DesktopPort) {
         $Ready = $true
         break
     }
+
     Start-Sleep -Milliseconds 500
 }
 
 if ($Ready) {
-    Write-Host "Opening $WebUrl" -ForegroundColor Green
-    Start-Process explorer.exe -ArgumentList $WebUrl
+    Write-Host "Opening $DesktopUrl" -ForegroundColor Green
+    Start-Process explorer.exe -ArgumentList $DesktopUrl
 }
 else {
-    Write-Warning "Vite did not start on port $WebPort."
+    Write-Warning "Desktop did not start on port $DesktopPort."
     Read-Host "Press Enter to close this window"
 }
