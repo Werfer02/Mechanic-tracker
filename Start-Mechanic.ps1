@@ -1,18 +1,42 @@
 ﻿$ErrorActionPreference = "Stop"
 
-# This script is intended to live in the Mechanic-tracker repository root.
+# Put this script in the Mechanic-tracker repository root.
 $Root = $PSScriptRoot
 
-$ApiUrl = "http://localhost:3001"
-$WebUrl = "http://localhost:5173"
+$ApiPort = 3001
+$WebPort = 5173
+$WebUrl = "http://localhost:$WebPort"
 
-function Start-PowerShellProcess {
+function Test-Port {
     param(
-        [string]$Title,
+        [string]$ComputerName = "127.0.0.1",
+        [int]$Port
+    )
+
+    try {
+        $Client = New-Object System.Net.Sockets.TcpClient
+        $Async = $Client.BeginConnect($ComputerName, $Port, $null, $null)
+        $Connected = $Async.AsyncWaitHandle.WaitOne(500)
+
+        if ($Connected -and $Client.Connected) {
+            $Client.EndConnect($Async)
+            $Client.Close()
+            return $true
+        }
+
+        $Client.Close()
+        return $false
+    }
+    catch {
+        return $false
+    }
+}
+
+function Start-ServerWindow {
+    param(
         [string]$Command
     )
 
-    # -EncodedCommand avoids quoting/path problems, including spaces in the repo path.
     $Bytes = [System.Text.Encoding]::Unicode.GetBytes($Command)
     $Encoded = [Convert]::ToBase64String($Bytes)
 
@@ -25,14 +49,8 @@ function Start-PowerShellProcess {
 
 Write-Host "Starting Mechanic Tracker..." -ForegroundColor Cyan
 
-# Start the API only if it is not already listening.
-$ApiRunning = $false
-try {
-    Invoke-WebRequest "$ApiUrl/api/healthz" -UseBasicParsing -TimeoutSec 1 | Out-Null
-    $ApiRunning = $true
-} catch {}
-
-if (-not $ApiRunning) {
+# API
+if (-not (Test-Port -Port $ApiPort)) {
     $ApiCommand = @"
 `$Host.UI.RawUI.WindowTitle = 'Mechanic Tracker API'
 Set-Location -LiteralPath '$($Root.Replace("'", "''"))'
@@ -43,20 +61,15 @@ Set-Location -LiteralPath '$($Root.Replace("'", "''"))'
 pnpm --filter @workspace/api-server run start
 "@
 
-    Start-PowerShellProcess -Title "Mechanic Tracker API" -Command $ApiCommand
-    Write-Host "API started."
-} else {
+    Start-ServerWindow -Command $ApiCommand
+    Write-Host "API starting..."
+}
+else {
     Write-Host "API is already running."
 }
 
-# Start Vite only if it is not already responding.
-$WebRunning = $false
-try {
-    Invoke-WebRequest $WebUrl -UseBasicParsing -TimeoutSec 1 | Out-Null
-    $WebRunning = $true
-} catch {}
-
-if (-not $WebRunning) {
+# Vite
+if (-not (Test-Port -Port $WebPort)) {
     $WebCommand = @"
 `$Host.UI.RawUI.WindowTitle = 'Mechanic Tracker Desktop'
 Set-Location -LiteralPath '$($Root.Replace("'", "''"))'
@@ -66,29 +79,33 @@ Set-Location -LiteralPath '$($Root.Replace("'", "''"))'
 pnpm --filter @workspace/mechanic-desktop run dev
 "@
 
-    Start-PowerShellProcess -Title "Mechanic Tracker Desktop" -Command $WebCommand
-    Write-Host "Desktop server started."
-} else {
+    Start-ServerWindow -Command $WebCommand
+    Write-Host "Desktop server starting..."
+}
+else {
     Write-Host "Desktop server is already running."
 }
 
-# Wait for Vite before opening the browser.
+# Wait for Vite's TCP port rather than making an HTTP request.
 Write-Host "Waiting for the web app..."
 
 $Ready = $false
 for ($i = 0; $i -lt 30; $i++) {
-    try {
-        Invoke-WebRequest $WebUrl -UseBasicParsing -TimeoutSec 1 | Out-Null
+    if (Test-Port -Port $WebPort) {
         $Ready = $true
         break
-    } catch {
-        Start-Sleep -Seconds 1
     }
+
+    Start-Sleep -Milliseconds 500
 }
 
 if ($Ready) {
-    Write-Host "Opening Mechanic Tracker." -ForegroundColor Green
-    Start-Process $WebUrl
-} else {
-    Write-Warning "The web app did not become available. Check the API and Desktop PowerShell windows for errors."
+    Write-Host "Opening Mechanic Tracker..." -ForegroundColor Green
+
+    # explorer.exe reliably hands URLs to the Windows default browser.
+    Start-Process explorer.exe -ArgumentList $WebUrl
+}
+else {
+    Write-Warning "Vite did not start on port $WebPort. Check the Desktop PowerShell window for errors."
+    Read-Host "Press Enter to close this window"
 }
