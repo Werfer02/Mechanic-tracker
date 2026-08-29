@@ -1,5 +1,7 @@
 # Mechanic Tracker
 
+## **note! this is all vibecoded dont take it too seriously**
+
 A vehicle service logging system with three components:
 
 - **API Server** — Express + PostgreSQL, handles sync rooms shared between desktop and mobile
